@@ -1,0 +1,176 @@
+{
+  "theme": "Dark",
+  "archetype": "Swiss & High-Contrast mixed with Jewel & Luxury",
+  "description": "A highly premium, editorial-style food delivery app. The UI is starkly monochromatic (Black & White) so that the vibrant, high-saturation food photography acts as the sole source of color and visual hook. The goal is to make the food feel expensive, exclusive, and immediately crave-able.",
+  "colors": {
+    "background": "#050505",
+    "surface": "#121212",
+    "surface_light": "#1E1E1E",
+    "primary": "#FFFFFF",
+    "primary_foreground": "#050505",
+    "text_primary": "#FAFAFA",
+    "text_secondary": "#A0A0A0",
+    "border": "#2A2A2A",
+    "error": "#FF3B30",
+    "success": "#34C759"
+  },
+  "typography": {
+    "font_family_heading": "PlayfairDisplay_600SemiBold",
+    "font_family_body": "DMSans_400Regular",
+    "font_family_body_medium": "DMSans_500Medium",
+    "font_family_body_bold": "DMSans_700Bold",
+    "expo_fonts_to_install": [
+      "@expo-google-fonts/playfair-display",
+      "@expo-google-fonts/dm-sans"
+    ],
+    "sizes": {
+      "h1": {
+        "fontSize": 40,
+        "lineHeight": 44,
+        "letterSpacing": -1
+      },
+      "h2": {
+        "fontSize": 32,
+        "lineHeight": 36,
+        "letterSpacing": -0.5
+      },
+      "h3": {
+        "fontSize": 24,
+        "lineHeight": 28,
+        "letterSpacing": 0
+      },
+      "body": {
+        "fontSize": 16,
+        "lineHeight": 24,
+        "letterSpacing": 0
+      },
+      "caption": {
+        "fontSize": 12,
+        "lineHeight": 16,
+        "letterSpacing": 0.5,
+        "textTransform": "uppercase"
+      }
+    }
+  },
+  "spacing": {
+    "xs": 4,
+    "sm": 8,
+    "md": 16,
+    "lg": 24,
+    "xl": 32,
+    "xxl": 48,
+    "screen_padding": 24
+  },
+  "layout_rules": {
+    "general": "Use generous negative space. Do not cram elements. Let the typography breathe.",
+    "cards": "Flat surfaces with 1px border. No drop shadows. Sharp or very slightly rounded corners (borderRadius: 4). Images inside cards should bleed to the edges (edge-to-edge).",
+    "hero_sections": "Use full-width, edge-to-edge food imagery with a heavy gradient overlay (black to transparent) at the bottom to ensure white text remains readable.",
+    "navigation": "Minimalist bottom tab bar. Pure black background, white active icons, gray inactive icons. No text labels for tabs.",
+    "touch_targets": "All interactive elements MUST have a minimum height/width of 48px to be thumb-friendly."
+  },
+  "components": {
+    "button_primary": {
+      "backgroundColor": "#FFFFFF",
+      "borderRadius": 0,
+      "height": 56,
+      "justifyContent": "center",
+      "alignItems": "center",
+      "paddingHorizontal": 24
+    },
+    "button_primary_text": {
+      "color": "#050505",
+      "fontFamily": "DMSans_700Bold",
+      "fontSize": 16,
+      "textTransform": "uppercase",
+      "letterSpacing": 1
+    },
+    "button_secondary": {
+      "backgroundColor": "transparent",
+      "borderWidth": 1,
+      "borderColor": "#FFFFFF",
+      "borderRadius": 0,
+      "height": 56,
+      "justifyContent": "center",
+      "alignItems": "center"
+    },
+    "input": {
+      "height": 56,
+      "backgroundColor": "#121212",
+      "borderWidth": 1,
+      "borderColor": "#2A2A2A",
+      "borderRadius": 0,
+      "paddingHorizontal": 16,
+      "color": "#FAFAFA",
+      "fontFamily": "DMSans_400Regular",
+      "fontSize": 16
+    },
+    "tags": {
+      "backgroundColor": "#1E1E1E",
+      "paddingVertical": 6,
+      "paddingHorizontal": 12,
+      "borderRadius": 100,
+      "borderWidth": 1,
+      "borderColor": "#2A2A2A"
+    }
+  },
+  "motion_and_interaction": {
+    "transitions": "Use react-native-reanimated for smooth layout transitions. Lists should stagger in on load.",
+    "press_states": "Buttons should use a slight opacity reduction (0.8) on press (using Pressable or TouchableOpacity).",
+    "scrolling": "Implement parallax scrolling on the restaurant detail page hero image."
+  },
+  "accessibility_and_testing": {
+    "testing_attributes": "All interactive and key informational elements MUST include a `testID` attribute (React Native equivalent of data-testid). Format: kebab-case, role-based. Example: testID='login-form-submit-button'.",
+    "contrast": "Ensure pure white text on the #050505 background for maximum readability."
+  },
+  "media_urls": {
+    "hero_banners": [
+      {
+        "url": "https://images.unsplash.com/photo-1611309454921-16cef3438ee0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwzfHxnb3VybWV0JTIwYnVyZ2VyJTIwZGFyayUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzc1NDc2MDc5fDA&ixlib=rb-4.1.0&q=85",
+        "description": "Gourmet double burger on dark background. Ideal for primary hero banner.",
+        "category": "hero"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1617196034796-73dfa7b1fd56?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODd8MHwxfHNlYXJjaHwyfHxwcmVtaXVtJTIwc3VzaGklMjBkYXJrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NzU0NzYwNzl8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Premium sushi on black square plate. Ideal for secondary hero banner.",
+        "category": "hero"
+      }
+    ],
+    "restaurant_interiors": [
+      {
+        "url": "https://images.unsplash.com/photo-1766832255363-c9f060ade8b0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzN8MHwxfHNlYXJjaHwzfHxmaW5lJTIwZGluaW5nJTIwcmVzdGF1cmFudCUyMGludGVyaW9yJTIwZGFya3xlbnwwfHx8fDE3NzU0NzYwNzR8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Elegant dark dining tables. Use for restaurant profile headers.",
+        "category": "restaurant_header"
+      },
+      {
+        "url": "https://images.pexels.com/photos/880424/pexels-photo-880424.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Cozy restaurant interior with elegant wine glasses.",
+        "category": "restaurant_header"
+      }
+    ],
+    "food_items": [
+      {
+        "url": "https://images.unsplash.com/photo-1565686481561-d8ceaa689e01?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjA1ODh8MHwxfHNlYXJjaHwxfHxmaW5lJTIwZGluaW5nJTIwZm9vZCUyMGRhcmslMjBwbGF0ZXxlbnwwfHx8fDE3NzU0NzYwNzl8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Premium fish dish.",
+        "category": "menu_item"
+      },
+      {
+        "url": "https://images.pexels.com/photos/109400/pexels-photo-109400.jpeg?auto=compress&cs=tinysrgb&dpr=2&h=650&w=940",
+        "description": "Gourmet burger top-down shot.",
+        "category": "menu_item"
+      },
+      {
+        "url": "https://images.unsplash.com/photo-1774635804786-5ebb8f88dcdf?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NTYxODd8MHwxfHNlYXJjaHwzfHxwcmVtaXVtJTIwc3VzaGklMjBkYXJrJTIwYmFja2dyb3VuZHxlbnwwfHx8fDE3NzU0NzYwNzl8MA&ixlib=rb-4.1.0&q=85",
+        "description": "Assortment of fresh salmon sushi and rolls.",
+        "category": "menu_item"
+      }
+    ],
+    "users": [
+      {
+        "url": "https://images.unsplash.com/photo-1771580425842-36380c98efc4?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMjh8MHwxfHNlYXJjaHwzfHxwb3J0cmFpdCUyMGZhc2hpb25hYmxlJTIwcGVyc29ufGVufDB8fHx8MTc3NTQ3NjA3NHww&ixlib=rb-4.1.0&q=85",
+        "description": "Woman in black leather jacket. Use for user profile avatar.",
+        "category": "avatar"
+      }
+    ]
+  },
+  "instructions_to_main_agent": "1. Strictly enforce the Black & White theme for UI components, allowing only the food images to provide color. 2. Use pure React Native StyleSheet (no Tailwind). 3. Use 'Playfair Display' for Headings and 'DM Sans' for body text via Expo Google Fonts. 4. Do not use generic drop shadows; rely on borders and high contrast. 5. Include testID properties on all touchable elements. 6. Build a custom bottom tab bar that integrates smoothly with Expo Router. 7. Do not use HTML/CSS elements."
+}
