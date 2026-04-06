@@ -1,5 +1,6 @@
 // metro.config.js
 const { getDefaultConfig } = require("expo/metro-config");
+const { withNativeWind } = require("nativewind/metro");
 const path = require('path');
 const { FileStore } = require('metro-cache');
 
@@ -22,4 +23,4 @@ config.cacheStores = [
 // Reduce the number of workers to decrease resource usage
 config.maxWorkers = 2;
 
-module.exports = config;
+module.exports = withNativeWind(config, { input: "./global.css" });
