@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
-import { Colors, Spacing } from '@/constants/theme';
+import { Colors, Spacing, Brutalist } from '@/constants/theme';
 
 const STATUS_OPTS = ['confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'];
 const STATUS_LABELS: Record<string, string> = {
@@ -85,6 +85,14 @@ export default function AdminDashboard() {
             onPress={() => router.push('/admin/restaurants')}>
             <Ionicons name="restaurant-outline" size={20} color={Colors.primary} />
             <Text style={s.manageBtnTxt}>Manage Restaurants</Text>
+            <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+          </TouchableOpacity>
+
+          {/* Finance Settings Link */}
+          <TouchableOpacity testID="finance-settings-btn" style={[s.manageBtn, { borderColor: Colors.primary }]}
+            onPress={() => router.push('/admin/settings')}>
+            <Ionicons name="cash-outline" size={20} color={Colors.primary} />
+            <Text style={s.manageBtnTxt}>Finance Settings</Text>
             <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
           </TouchableOpacity>
 

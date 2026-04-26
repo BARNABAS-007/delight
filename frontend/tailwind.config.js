@@ -18,6 +18,8 @@ module.exports = {
         success: "#34C759",
         danger: "#FF3B30",
         gold: "#FFD700",
+        kfcRed: "#E4002B",
+        maccasYellow: "#FFC72C",
       },
       fontFamily: {
         playfair: ["PlayfairDisplay_600SemiBold"],

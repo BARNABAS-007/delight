@@ -38,6 +38,7 @@ class Restaurant(Base):
     tags = Column(JSON, default=list)
     is_active = Column(Boolean, default=True)
     menu_categories = Column(JSON, default=list)
+    commission_rate = Column(Float, default=5.0)
     created_at = Column(DateTime(timezone=True), default=now_utc)
 
 class Cart(Base):

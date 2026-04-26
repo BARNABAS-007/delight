@@ -1,6 +1,7 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { supabase } from '@/lib/supabase';
 
-const BASE = (process.env.EXPO_PUBLIC_BACKEND_URL || '') + '/api';
+const BASE = (process.env.EXPO_PUBLIC_BACKEND_URL || 'http://localhost:8000') + '/api';
 
 let _token: string | null = null;
 
@@ -28,14 +29,22 @@ export const api = {
   googleAuth: (session_id: string) =>
     req('POST', '/auth/google', { session_id }),
 
-  // Restaurants
-  getRestaurants: (params?: Record<string, string>) => {
-    const qs = params ? '?' + new URLSearchParams(params).toString() : '';
-    return req('GET', `/restaurants${qs}`);
-  },
-  getRestaurant: (id: string) => req('GET', `/restaurants/${id}`),
 
-  // Cart
+  // Restaurants
+  getRestaurants: async (params?: Record<string, string>) => {
+    let q = supabase.from('restaurants').select('*');
+    if (params?.cuisine) q = q.contains('cuisine', [params.cuisine]);
+    const { data, error } = await q;
+    if (error) throw error;
+    return data;
+  },
+  getRestaurant: async (id: string) => {
+    const { data, error } = await supabase.from('restaurants').select('*').eq('id', id).single();
+    if (error) throw error;
+    return data;
+  },
+
+  // Cart (legacy API — now handled by CartContext, kept for backward compat)
   getCart: () => req('GET', '/cart'),
   addToCart: (item: any) => req('POST', '/cart/items', item),
   updateCartItem: (itemId: string, quantity: number) =>
@@ -62,4 +71,26 @@ export const api = {
   adminGetOrders: () => req('GET', '/admin/orders'),
   adminUpdateOrderStatus: (id: string, status: string) =>
     req('PUT', `/admin/orders/${id}/status`, { status }),
+
+  // Finance Settings (Admin)
+  adminGetFinanceConfigs: () => req('GET', '/admin/finance'),
+  adminUpdateFinanceConfig: (restaurantId: string, config: any) =>
+    req('PUT', `/admin/finance/${restaurantId}`, config),
+  adminGetPlatformFee: () => req('GET', '/admin/finance/platform-fee'),
+  adminSetPlatformFee: (fee: number) =>
+    req('PUT', '/admin/finance/platform-fee', { fee }),
+
+  // Rapido Logistics
+  triggerRapidoDelivery: (orderId: string, payload: any) =>
+    req('POST', `/orders/${orderId}/rapido`, payload),
+  getRapidoStatus: (bookingId: string) =>
+    req('GET', `/logistics/rapido/${bookingId}`),
+
+  // Feedback (Institutional)
+  submitFeedback: (data: { type: 'student' | 'lecturer'; rating: number; comment: string; restaurant_id?: string }) =>
+    req('POST', '/feedback', data),
+  getFeedback: (params?: { type?: string; restaurant_id?: string }) => {
+    const qs = params ? '?' + new URLSearchParams(params as any).toString() : '';
+    return req('GET', `/feedback${qs}`);
+  },
 };

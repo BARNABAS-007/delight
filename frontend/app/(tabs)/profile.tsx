@@ -1,32 +1,49 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState } from 'react';
 import {
   View, Text, StyleSheet, TouchableOpacity, ScrollView,
-  ActivityIndicator, Image, Alert,
+  Image, Alert, TextInput, Modal,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '@/services/api';
 import { useAuth } from '@/context/AuthContext';
-import { Colors, Spacing } from '@/constants/theme';
+import { useFeedback } from '@/context/FeedbackContext';
+import { useCart } from '@/context/CartContext';
+import { Colors, Spacing, Brutalist } from '@/constants/theme';
 
 export default function Profile() {
   const { user, logout } = useAuth();
+  const { submitFeedback, getAvgRating, entries } = useFeedback();
+  const { itemCount } = useCart();
   const router = useRouter();
   const insets = useSafeAreaInsets();
-  const [cartCount, setCartCount] = useState(0);
 
-  useEffect(() => {
-    api.getCart().then((cart: any) => {
-      setCartCount(cart?.items?.reduce((s: number, i: any) => s + i.quantity, 0) || 0);
-    }).catch(() => {});
-  }, []);
+  const [feedbackModal, setFeedbackModal] = useState(false);
+  const [feedbackType, setFeedbackType] = useState<'student' | 'lecturer'>('student');
+  const [rating, setRating] = useState(5);
+  const [comment, setComment] = useState('');
+
+  const isAdmin = user?.role === 'admin' || user?.role === 'chef_admin';
 
   const handleLogout = () => {
-    Alert.alert('Sign Out', 'Are you sure you want to sign out?', [
+    Alert.alert('Sign Out', 'Are you sure?', [
       { text: 'Cancel', style: 'cancel' },
       { text: 'Sign Out', style: 'destructive', onPress: async () => { await logout(); router.replace('/(auth)/login'); } },
     ]);
+  };
+
+  const openFeedback = (type: 'student' | 'lecturer') => {
+    setFeedbackType(type);
+    setRating(5);
+    setComment('');
+    setFeedbackModal(true);
+  };
+
+  const handleSubmitFeedback = () => {
+    if (!comment.trim()) { Alert.alert('Required', 'Please write a comment'); return; }
+    submitFeedback({ type: feedbackType, rating, comment });
+    setFeedbackModal(false);
+    Alert.alert('Thank You! ⚡', 'Your feedback helps us improve firstmeal.');
   };
 
   const MENU_ITEMS = [
@@ -42,7 +59,7 @@ export default function Profile() {
     <View style={[s.container, { paddingTop: insets.top }]}>
       <ScrollView showsVerticalScrollIndicator={false}>
         <View style={s.header}>
-          <Text style={s.brand}>DELIGHT</Text>
+          <Text style={s.brand}>firstmeal</Text>
         </View>
 
         {/* User Card */}
@@ -57,14 +74,14 @@ export default function Profile() {
           <View style={s.userInfo}>
             <Text style={s.userName}>{user?.name || 'User'}</Text>
             <Text style={s.userEmail}>{user?.email}</Text>
-            {user?.role === 'admin' && (
-              <View style={s.adminBadge}><Text style={s.adminBadgeTxt}>ADMIN</Text></View>
+            {isAdmin && (
+              <View style={s.adminBadge}><Text style={s.adminBadgeTxt}>{user?.role === 'chef_admin' ? 'CHEF ADMIN' : 'ADMIN'}</Text></View>
             )}
           </View>
         </View>
 
         {/* Admin Panel */}
-        {user?.role === 'admin' && (
+        {isAdmin && (
           <TouchableOpacity testID="admin-panel-btn" style={s.adminCard} onPress={() => router.push('/admin/index')}>
             <View style={s.adminCardLeft}>
               <Ionicons name="shield-checkmark-outline" size={24} color={Colors.primary} />
@@ -73,6 +90,32 @@ export default function Profile() {
             <Ionicons name="chevron-forward" size={20} color={Colors.textSecondary} />
           </TouchableOpacity>
         )}
+
+        {/* ── Institutional Feedback ── */}
+        <View style={s.feedbackSection}>
+          <Text style={s.feedbackTitle}>⚡ INSTITUTIONAL FEEDBACK</Text>
+          <Text style={s.feedbackNote}>{entries.length} responses · Avg {getAvgRating() || '—'}/5</Text>
+          <View style={s.feedbackBtns}>
+            <TouchableOpacity
+              testID="feedback-student-btn"
+              style={s.feedbackBtn}
+              onPress={() => openFeedback('student')}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="school" size={18} color={Colors.primaryFg} />
+              <Text style={s.feedbackBtnTxt}>Student</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              testID="feedback-lecturer-btn"
+              style={[s.feedbackBtn, s.feedbackBtnAlt]}
+              onPress={() => openFeedback('lecturer')}
+              activeOpacity={0.85}
+            >
+              <Ionicons name="person" size={18} color={Colors.primary} />
+              <Text style={[s.feedbackBtnTxt, s.feedbackBtnTxtAlt]}>Lecturer</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
 
         {/* Menu */}
         <View style={s.menuSection}>
@@ -92,34 +135,123 @@ export default function Profile() {
           <Text style={s.logoutTxt}>Sign Out</Text>
         </TouchableOpacity>
 
-        <Text style={s.version}>Delight v1.0 · Premium Food Delivery</Text>
+        <Text style={s.version}>firstmeal v1.0 · Hunger x Speed</Text>
         <View style={{ height: 32 }} />
       </ScrollView>
+
+      {/* ── Feedback Modal ── */}
+      <Modal visible={feedbackModal} transparent animationType="slide">
+        <View style={s.modalOverlay}>
+          <View style={s.modalCard}>
+            <View style={s.modalHeader}>
+              <Text style={s.modalTitle}>
+                {feedbackType === 'student' ? '🎓 Student Feedback' : '👨‍🏫 Lecturer Feedback'}
+              </Text>
+              <TouchableOpacity onPress={() => setFeedbackModal(false)}>
+                <Ionicons name="close" size={24} color={Colors.textSecondary} />
+              </TouchableOpacity>
+            </View>
+
+            {/* Stars */}
+            <View style={s.starsRow}>
+              {[1, 2, 3, 4, 5].map(star => (
+                <TouchableOpacity key={star} onPress={() => setRating(star)}>
+                  <Ionicons
+                    name={star <= rating ? 'star' : 'star-outline'}
+                    size={32}
+                    color={star <= rating ? Colors.primary : Colors.border}
+                  />
+                </TouchableOpacity>
+              ))}
+            </View>
+
+            <TextInput
+              testID="feedback-comment-input"
+              style={s.commentInput}
+              placeholder="Share your experience with firstmeal..."
+              placeholderTextColor={Colors.textSecondary}
+              multiline
+              numberOfLines={4}
+              textAlignVertical="top"
+              value={comment}
+              onChangeText={setComment}
+            />
+
+            <TouchableOpacity testID="submit-feedback-btn" style={s.submitBtn} onPress={handleSubmitFeedback}>
+              <Text style={s.submitBtnTxt}>SUBMIT FEEDBACK</Text>
+            </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
 const s = StyleSheet.create({
   container: { flex: 1, backgroundColor: Colors.background },
+
   header: { paddingHorizontal: Spacing.screen, paddingTop: 8, paddingBottom: 8 },
-  brand: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 24, color: Colors.primary, letterSpacing: 4 },
-  userCard: { flexDirection: 'row', alignItems: 'center', margin: Spacing.screen, padding: 20, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
-  avatar: { width: 64, height: 64, backgroundColor: Colors.border, alignItems: 'center', justifyContent: 'center', marginRight: 16, overflow: 'hidden' },
-  avatarImg: { width: 64, height: 64, resizeMode: 'cover' },
-  avatarTxt: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 28, color: Colors.primary },
+  brand: { fontFamily: 'DMSans_700Bold', fontSize: 24, color: Colors.textPrimary, letterSpacing: -1 },
+
+  userCard: {
+    flexDirection: 'row', alignItems: 'center', margin: Spacing.screen, padding: 20,
+    backgroundColor: Colors.surface, ...Brutalist, borderColor: Colors.secondary, borderWidth: 1,
+  },
+  avatar: { width: 64, height: 64, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginRight: 16, borderRadius: 32 },
+  avatarImg: { width: 64, height: 64, borderRadius: 32, resizeMode: 'cover' },
+  avatarTxt: { fontFamily: 'DMSans_700Bold', fontSize: 28, color: Colors.primaryFg },
   userInfo: { flex: 1 },
-  userName: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 20, color: Colors.textPrimary },
+  userName: { fontFamily: 'DMSans_700Bold', fontSize: 20, color: Colors.textPrimary },
   userEmail: { fontFamily: 'DMSans_400Regular', fontSize: 14, color: Colors.textSecondary, marginTop: 4 },
-  adminBadge: { marginTop: 6, alignSelf: 'flex-start', backgroundColor: Colors.primary, paddingHorizontal: 8, paddingVertical: 2 },
+  adminBadge: { marginTop: 6, alignSelf: 'flex-start', backgroundColor: Colors.primary, paddingHorizontal: 10, paddingVertical: 3, ...Brutalist, borderColor: Colors.secondary },
   adminBadgeTxt: { fontFamily: 'DMSans_700Bold', fontSize: 10, color: Colors.primaryFg, letterSpacing: 1 },
-  adminCard: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginHorizontal: Spacing.screen, marginBottom: 8, padding: 16, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.primary },
+
+  adminCard: {
+    flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
+    marginHorizontal: Spacing.screen, marginBottom: 12, padding: 16,
+    backgroundColor: Colors.adminBg, ...Brutalist, borderColor: Colors.primary, borderWidth: 1,
+  },
   adminCardLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
   adminCardTxt: { fontFamily: 'DMSans_700Bold', fontSize: 16, color: Colors.primary },
-  menuSection: { marginHorizontal: Spacing.screen, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, marginBottom: 16 },
+
+  feedbackSection: {
+    marginHorizontal: Spacing.screen, marginBottom: 16, padding: 16,
+    backgroundColor: Colors.surface, ...Brutalist, borderColor: Colors.tertiary, borderWidth: 1,
+  },
+  feedbackTitle: { fontFamily: 'DMSans_700Bold', fontSize: 13, color: Colors.textPrimary, letterSpacing: 1, marginBottom: 4 },
+  feedbackNote: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary, marginBottom: 12 },
+  feedbackBtns: { flexDirection: 'row', gap: 10 },
+  feedbackBtn: { flex: 1, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 6, height: 42, backgroundColor: Colors.primary },
+  feedbackBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 13, color: Colors.primaryFg, letterSpacing: 0.5 },
+  feedbackBtnAlt: { backgroundColor: 'transparent', borderWidth: 1, borderColor: Colors.primary },
+  feedbackBtnTxtAlt: { color: Colors.primary },
+
+  menuSection: {
+    marginHorizontal: Spacing.screen, backgroundColor: Colors.surface,
+    ...Brutalist, borderColor: Colors.secondary, borderWidth: 1, marginBottom: 16,
+  },
   menuItem: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, borderBottomWidth: 1, borderBottomColor: Colors.border },
   menuLeft: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   menuLabel: { fontFamily: 'DMSans_500Medium', fontSize: 16, color: Colors.textPrimary },
+
   logoutBtn: { flexDirection: 'row', alignItems: 'center', gap: 10, marginHorizontal: Spacing.screen, padding: 16 },
   logoutTxt: { fontFamily: 'DMSans_500Medium', fontSize: 16, color: Colors.error },
   version: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary, textAlign: 'center', marginTop: 8 },
+
+  // Modal
+  modalOverlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
+  modalCard: {
+    backgroundColor: Colors.surface, padding: 24, paddingBottom: 40,
+    borderTopLeftRadius: 20, borderTopRightRadius: 20,
+  },
+  modalHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 },
+  modalTitle: { fontFamily: 'DMSans_700Bold', fontSize: 18, color: Colors.textPrimary },
+  starsRow: { flexDirection: 'row', gap: 8, justifyContent: 'center', marginBottom: 20 },
+  commentInput: {
+    height: 100, borderWidth: 1, borderColor: Colors.border, backgroundColor: Colors.surfaceLight,
+    paddingHorizontal: 16, paddingVertical: 12, fontFamily: 'DMSans_400Regular', fontSize: 15,
+    color: Colors.textPrimary, marginBottom: 16,
+  },
+  submitBtn: { height: 50, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', ...Brutalist, borderColor: Colors.secondary },
+  submitBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 15, color: Colors.primaryFg, letterSpacing: 2 },
 });

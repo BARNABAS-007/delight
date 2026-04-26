@@ -53,16 +53,35 @@ async def current_user(authorization: Optional[str] = Header(None)):
     if not authorization or not authorization.startswith("Bearer "):
         raise HTTPException(401, "Not authenticated")
     try:
-        p = jwt.decode(authorization[7:], JWT_SECRET, algorithms=[JWT_ALG])
+        # Verify the JWT using the Supabase JWT secret. options={"verify_aud": False} handles mismatches if any
+        p = jwt.decode(authorization[7:], JWT_SECRET, algorithms=[JWT_ALG], options={"verify_aud": False})
     except jwt.ExpiredSignatureError:
         raise HTTPException(401, "Token expired")
     except jwt.InvalidTokenError:
         raise HTTPException(401, "Invalid token")
+        
+    user_id = p.get("sub")
+    email = p.get("email", "")
+    metadata = p.get("user_metadata", {})
+    name = metadata.get("full_name", email.split("@")[0] if email else "User")
+    
     async with AsyncSessionLocal() as session:
-        result = await session.execute(select(User).where(User.user_id == p["sub"]))
+        result = await session.execute(select(User).where(User.user_id == user_id))
         user = result.scalar_one_or_none()
-    if not user:
-        raise HTTPException(401, "User not found")
+        
+        # Auto-create local user profile if it doesn't exist (Supabase sync)
+        if not user:
+            user = User(
+                user_id=user_id,
+                email=email,
+                name=name,
+                password_hash="SUPABASE_AUTH",
+                role="user"
+            )
+            session.add(user)
+            await session.commit()
+            await session.refresh(user)
+
     return fmt_user(user)
 
 async def admin_user(u=Depends(current_user)):
@@ -439,9 +458,6 @@ async def add_to_cart(body: CartItemReq, u=Depends(current_user)):
         res = await session.execute(select(Cart).where(Cart.user_id == u["user_id"]))
         cart = res.scalar_one_or_none()
 
-        if cart and cart.restaurant_id and cart.restaurant_id != body.restaurant_id and cart.items:
-            raise HTTPException(400, "Cart has items from another restaurant. Clear cart first.")
-
         if not cart:
             cart = Cart(
                 id=str(uuid.uuid4()),
@@ -461,13 +477,22 @@ async def add_to_cart(body: CartItemReq, u=Depends(current_user)):
         else:
             items.append({
                 "item_id": body.item_id, "name": body.name,
-                "price": body.price, "quantity": body.quantity, "image": body.image
+                "price": body.price, "quantity": body.quantity, "image": body.image,
+                "restaurant_id": body.restaurant_id,
+                "restaurant_name": body.restaurant_name,
+                "restaurant_image": body.restaurant_image
             })
 
         cart.items = items
-        cart.restaurant_id = body.restaurant_id
-        cart.restaurant_name = body.restaurant_name
-        cart.restaurant_image = body.restaurant_image
+        if not cart.restaurant_id or len(set(i.get("restaurant_id") for i in items)) == 1:
+            cart.restaurant_id = body.restaurant_id
+            cart.restaurant_name = body.restaurant_name
+            cart.restaurant_image = body.restaurant_image
+        else:
+            cart.restaurant_id = "multiple"
+            cart.restaurant_name = "Multiple Restaurants"
+            cart.restaurant_image = ""
+            
         cart.updated_at = datetime.now(timezone.utc)
         await session.commit()
         await session.refresh(cart)

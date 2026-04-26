@@ -1,18 +1,25 @@
 import React, { createContext, useContext, useState, useEffect, ReactNode } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api, setToken } from '@/services/api';
+import { supabase } from '@/lib/supabase';
+import { setToken } from '@/services/api';
 
 interface User {
-  user_id: string; email: string; name: string; role: string; picture?: string; phone?: string;
+  user_id: string; 
+  email: string; 
+  name: string; 
+  role: string; 
+  picture?: string; 
+  phone?: string;
 }
+
 interface AuthCtx {
-  user: User | null; loading: boolean;
+  user: User | null; 
+  loading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string) => Promise<void>;
-  loginWithGoogle: (session_id: string) => Promise<void>;
   logout: () => Promise<void>;
-  updateUser: (u: User) => void;
 }
+
 const Ctx = createContext<AuthCtx | null>(null);
 
 export function AuthProvider({ children }: { children: ReactNode }) {
@@ -20,48 +27,67 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    (async () => {
-      try {
-        const token = await AsyncStorage.getItem('delight_token');
-        if (token) {
-          setToken(token);
-          const u = await api.me() as any;
-          setUser(u);
-        }
-      } catch { await AsyncStorage.removeItem('delight_token'); setToken(null); }
-      finally { setLoading(false); }
-    })();
+    // Initial check
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        setToken(session.access_token);
+        setUser({
+          user_id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.full_name || '',
+          role: 'user',
+          picture: session.user.user_metadata?.avatar_url || '',
+        });
+      }
+      setLoading(false);
+    });
+
+    // Listen for auth state changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, session) => {
+      if (session) {
+        setToken(session.access_token);
+        setUser({
+          user_id: session.user.id,
+          email: session.user.email || '',
+          name: session.user.user_metadata?.full_name || '',
+          role: 'user',
+          picture: session.user.user_metadata?.avatar_url || '',
+        });
+      } else {
+        setToken(null);
+        setUser(null);
+      }
+      setLoading(false);
+    });
+
+    return () => subscription.unsubscribe();
   }, []);
 
-  const save = async (token: string, u: User) => {
-    await AsyncStorage.setItem('delight_token', token);
-    setToken(token); setUser(u);
-  };
-
   const login = async (email: string, password: string) => {
-    const res: any = await api.login(email, password);
-    await save(res.token, res.user);
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
+    if (error) throw error;
   };
 
   const register = async (name: string, email: string, password: string) => {
-    const res: any = await api.register(name, email, password);
-    await save(res.token, res.user);
-  };
-
-  const loginWithGoogle = async (session_id: string) => {
-    const res: any = await api.googleAuth(session_id);
-    await save(res.token, res.user);
+    const { error } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          full_name: name,
+        }
+      }
+    });
+    if (error) throw error;
   };
 
   const logout = async () => {
-    await AsyncStorage.removeItem('delight_token');
-    setToken(null); setUser(null);
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
   };
 
-  const updateUser = (u: User) => setUser(u);
-
   return (
-    <Ctx.Provider value={{ user, loading, login, register, loginWithGoogle, logout, updateUser }}>
+    <Ctx.Provider value={{ user, loading, login, register, logout }}>
       {children}
     </Ctx.Provider>
   );

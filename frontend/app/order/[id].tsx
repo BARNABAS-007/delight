@@ -1,187 +1,232 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import {
-  View, Text, StyleSheet, ScrollView, TouchableOpacity,
-  Image, ActivityIndicator, RefreshControl,
+  View, Text, StyleSheet, TouchableOpacity, Animated,
 } from 'react-native';
-import { useLocalSearchParams, useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
-import { api } from '@/services/api';
-import { Colors, Spacing } from '@/constants/theme';
+import {
+  getRapidoStatus, RAPIDO_STATUS_LABELS, RAPIDO_STATUS_STEP,
+  RapidoStatus,
+} from '@/services/rapidoBridge';
+import { Colors, Spacing, Brutalist } from '@/constants/theme';
+import SpeedStreak from '@/components/SpeedStreak';
 
-const STEPS = [
-  { key: 'pending', label: 'Order Placed', icon: 'receipt-outline' },
-  { key: 'confirmed', label: 'Confirmed', icon: 'checkmark-circle-outline' },
-  { key: 'preparing', label: 'Preparing', icon: 'restaurant-outline' },
-  { key: 'out_for_delivery', label: 'On the Way', icon: 'bicycle-outline' },
-  { key: 'delivered', label: 'Delivered', icon: 'home-outline' },
-];
+const STEPS = ['Confirmed', 'Assigned', 'Out for Delivery', 'Delivered'];
 
 export default function OrderTracking() {
-  const { id } = useLocalSearchParams<{ id: string }>();
-  const [order, setOrder] = useState<any>(null);
-  const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
-  const router = useRouter();
+  const { id, rapido, est } = useLocalSearchParams<{ id: string; rapido?: string; est?: string }>();
   const insets = useSafeAreaInsets();
+  const router = useRouter();
 
-  const load = useCallback(async () => {
-    try {
-      const data: any = await api.getOrder(id as string);
-      setOrder(data);
-    } catch { }
-    finally { setLoading(false); setRefreshing(false); }
-  }, [id]);
+  const [status, setStatus] = useState<RapidoStatus>('pending');
+  const [minutes, setMinutes] = useState(parseInt(est ?? '8', 10));
+  const [captain, setCaptain] = useState<string | null>(null);
+  
+  const [streakFire, setStreakFire] = useState(false);
 
-  useEffect(() => { load(); }, []);
+  const progressAnim = useRef(new Animated.Value(0)).current;
 
-  const stepIndex = STEPS.findIndex(s => s.key === order?.status);
-  const isCancelled = order?.status === 'cancelled';
+  // ── Poll Rapido status every 3 seconds ──────────────────────────────────────
+  useEffect(() => {
+    if (!rapido) return;
+
+    const poll = async () => {
+      try {
+        const res = await getRapidoStatus(rapido);
+        setStatus(prev => {
+          if (prev !== 'out_for_delivery' && res.status === 'out_for_delivery') {
+            setStreakFire(true);
+            setTimeout(() => setStreakFire(false), 500);
+          }
+          return res.status;
+        });
+        setMinutes(res.estimated_minutes);
+        if (res.captain_name) setCaptain(res.captain_name);
+
+        const step = RAPIDO_STATUS_STEP[res.status] ?? 0;
+        const progress = Math.min(step / (STEPS.length - 1), 1);
+        Animated.spring(progressAnim, {
+          toValue: progress,
+          useNativeDriver: false,
+        }).start();
+
+        if (res.status === 'delivered') {
+          clearInterval(interval);
+        }
+      } catch { }
+    };
+
+    const interval = setInterval(poll, 3000);
+    poll(); // Initial
+
+    return () => clearInterval(interval);
+  }, [rapido]);
+
+  const currentStep = RAPIDO_STATUS_STEP[status] ?? 0;
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
+      <SpeedStreak visible={streakFire} />
+      
+      {/* Header */}
       <View style={s.header}>
-        <TouchableOpacity testID="back-btn" onPress={() => router.push('/(tabs)/orders')}>
+        <TouchableOpacity testID="back-btn" onPress={() => router.replace('/(tabs)')}>
           <Ionicons name="arrow-back" size={24} color={Colors.primary} />
         </TouchableOpacity>
-        <Text style={s.title}>Order Tracking</Text>
+        <Text style={s.title}>Order #{id?.slice(-6)}</Text>
         <View style={{ width: 24 }} />
       </View>
 
-      {loading ? <ActivityIndicator color={Colors.primary} style={{ marginTop: 60 }} /> : !order ? (
-        <View style={s.center}><Text style={s.errTxt}>Order not found</Text></View>
-      ) : (
-        <ScrollView
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.primary} />}
-        >
-          {/* Order Header */}
-          <View style={s.orderHead}>
-            <Image source={{ uri: order.restaurant_image }} style={s.restImg} />
-            <View style={s.orderInfo}>
-              <Text style={s.restName}>{order.restaurant_name}</Text>
-              <Text style={s.orderNum}>{order.order_number}</Text>
-              <Text style={s.orderDate}>{new Date(order.created_at).toLocaleString()}</Text>
-            </View>
-          </View>
+      {/* ── ETA Badge ── */}
+      <View style={s.etaCard}>
+        <Text style={s.etaLabel}>ESTIMATED DELIVERY</Text>
+        <View style={s.etaRow}>
+          <Text style={s.etaTime}>{minutes}</Text>
+          <Text style={s.etaUnit}>min</Text>
+        </View>
+        <Text style={s.statusLabel}>{RAPIDO_STATUS_LABELS[status]}</Text>
+      </View>
 
-          {/* Status Tracker */}
-          {!isCancelled ? (
-            <View style={s.tracker}>
-              <Text style={s.trackerLabel}>DELIVERY STATUS</Text>
-              {STEPS.map((step, i) => {
-                const done = i <= stepIndex;
-                const active = i === stepIndex;
-                return (
-                  <View key={step.key} style={s.step}>
-                    <View style={s.stepLeft}>
-                      <View style={[s.stepDot, done && s.stepDotDone, active && s.stepDotActive]}>
-                        <Ionicons name={step.icon as any} size={14} color={done ? Colors.primaryFg : Colors.textSecondary} />
-                      </View>
-                      {i < STEPS.length - 1 && <View style={[s.stepLine, done && i < stepIndex && s.stepLineDone]} />}
-                    </View>
-                    <Text style={[s.stepLabel, done && s.stepLabelDone]}>{step.label}</Text>
-                    {active && <View style={s.activeBadge}><Text style={s.activeTxt}>NOW</Text></View>}
-                  </View>
-                );
-              })}
-              <View style={s.etaBox}>
-                <Ionicons name="time-outline" size={16} color={Colors.textSecondary} />
-                <Text style={s.etaTxt}>Estimated: {order.estimated_delivery}</Text>
+      {/* ── Progress Bar ── */}
+      <View style={s.progressSection}>
+        <View style={s.progressTrack}>
+          <Animated.View
+            style={[
+              s.progressFill,
+              {
+                width: progressAnim.interpolate({
+                  inputRange: [0, 1],
+                  outputRange: ['0%', '100%'],
+                }),
+              },
+            ]}
+          />
+        </View>
+
+        {/* Step dots */}
+        <View style={s.stepsRow}>
+          {STEPS.map((step, i) => (
+            <View key={step} style={s.stepCol}>
+              <View style={[s.stepDot, i <= currentStep && s.stepDotActive]}>
+                {i <= currentStep && (
+                  <Ionicons name="checkmark" size={12} color={Colors.primaryFg} />
+                )}
               </View>
+              <Text style={[s.stepLabel, i <= currentStep && s.stepLabelActive]}>{step}</Text>
             </View>
-          ) : (
-            <View style={s.cancelledBox}>
-              <Ionicons name="close-circle-outline" size={48} color={Colors.error} />
-              <Text style={s.cancelledTxt}>Order Cancelled</Text>
-            </View>
-          )}
+          ))}
+        </View>
+      </View>
 
-          {/* Items */}
-          <View style={s.itemsSection}>
-            <Text style={s.sectionLabel}>ITEMS ORDERED</Text>
-            {order.items.map((item: any) => (
-              <View key={item.item_id} testID={`order-item-${item.item_id}`} style={s.itemRow}>
-                <Text style={s.itemQty}>{item.quantity}x</Text>
-                <Text style={s.itemName}>{item.name}</Text>
-                <Text style={s.itemPrice}>${(item.price * item.quantity).toFixed(2)}</Text>
-              </View>
-            ))}
+      {/* ── Captain Info ── */}
+      {currentStep >= 1 && captain && (
+        <View style={s.captainCard}>
+          <View style={s.captainAvatar}>
+            <Ionicons name="bicycle" size={24} color={Colors.primary} />
           </View>
-
-          {/* Price Summary */}
-          <View style={s.priceSection}>
-            <Text style={s.sectionLabel}>PAYMENT SUMMARY</Text>
-            <View style={s.priceRow}><Text style={s.priceLabel}>Subtotal</Text><Text style={s.priceVal}>${order.subtotal?.toFixed(2)}</Text></View>
-            <View style={s.priceRow}><Text style={s.priceLabel}>Delivery</Text><Text style={s.priceVal}>${order.delivery_fee?.toFixed(2)}</Text></View>
-            <View style={[s.priceRow, s.totalRow]}>
-              <Text style={s.totalLabel}>Total</Text>
-              <Text testID="order-total" style={s.totalVal}>${order.total?.toFixed(2)}</Text>
-            </View>
-            <Text style={s.paymentMethod}>Paid via: {order.payment_method === 'cod' ? 'Cash on Delivery' : 'Card'}</Text>
+          <View style={{ flex: 1 }}>
+            <Text style={s.captainName}>{captain}</Text>
+            <Text style={s.captainRole}>Rapido Captain</Text>
           </View>
-
-          {/* Delivery Address */}
-          <View style={s.addressSection}>
-            <Text style={s.sectionLabel}>DELIVERY ADDRESS</Text>
-            <Text style={s.address}>{order.delivery_address}</Text>
-          </View>
-
-          <TouchableOpacity testID="back-orders-btn" style={s.backBtn} onPress={() => router.push('/(tabs)/orders')}>
-            <Text style={s.backBtnTxt}>BACK TO ORDERS</Text>
+          <TouchableOpacity style={s.callBtn}>
+            <Ionicons name="call" size={20} color={Colors.primaryFg} />
           </TouchableOpacity>
-          <View style={{ height: 24 }} />
-        </ScrollView>
+        </View>
       )}
+
+      {/* ── Order Details ── */}
+      <View style={s.detailCard}>
+        <Text style={s.detailLabel}>ORDER ID</Text>
+        <Text style={s.detailVal}>{id}</Text>
+        {rapido && (
+          <>
+            <Text style={[s.detailLabel, { marginTop: 12 }]}>RAPIDO BOOKING</Text>
+            <Text style={s.detailVal}>{rapido}</Text>
+          </>
+        )}
+      </View>
+
+      {/* ── Back to Home ── */}
+      <View style={s.footer}>
+        <TouchableOpacity
+          testID="home-btn"
+          style={s.homeBtn}
+          onPress={() => router.replace('/(tabs)')}
+        >
+          <Text style={s.homeBtnTxt}>BACK TO HOME</Text>
+        </TouchableOpacity>
+      </View>
     </View>
   );
 }
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.background },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.screen, paddingVertical: 16 },
-  title: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 22, color: Colors.textPrimary },
-  center: { flex: 1, alignItems: 'center', justifyContent: 'center' },
-  errTxt: { fontFamily: 'DMSans_400Regular', color: Colors.textSecondary, fontSize: 16 },
-  orderHead: { flexDirection: 'row', alignItems: 'center', padding: Spacing.screen, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  restImg: { width: 56, height: 56, resizeMode: 'cover', marginRight: 14 },
-  orderInfo: {},
-  restName: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 18, color: Colors.textPrimary },
-  orderNum: { fontFamily: 'DMSans_700Bold', fontSize: 14, color: Colors.textSecondary, marginTop: 2 },
-  orderDate: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary },
-  tracker: { padding: Spacing.screen, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  trackerLabel: { fontFamily: 'DMSans_700Bold', fontSize: 11, color: Colors.textSecondary, letterSpacing: 2, marginBottom: 20 },
-  step: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 0 },
-  stepLeft: { alignItems: 'center', marginRight: 14, width: 32 },
-  stepDot: { width: 32, height: 32, borderRadius: 16, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center', backgroundColor: Colors.surface },
-  stepDotDone: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  stepDotActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
-  stepLine: { width: 2, height: 28, backgroundColor: Colors.border, marginVertical: 3 },
-  stepLineDone: { backgroundColor: Colors.primary },
-  stepLabel: { flex: 1, fontFamily: 'DMSans_400Regular', fontSize: 15, color: Colors.textSecondary, paddingTop: 6 },
-  stepLabelDone: { color: Colors.textPrimary, fontFamily: 'DMSans_500Medium' },
-  activeBadge: { backgroundColor: Colors.success, paddingHorizontal: 8, paddingVertical: 3, marginTop: 6 },
-  activeTxt: { fontFamily: 'DMSans_700Bold', fontSize: 10, color: '#050505', letterSpacing: 1 },
-  etaBox: { flexDirection: 'row', alignItems: 'center', gap: 8, marginTop: 16, padding: 12, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
-  etaTxt: { fontFamily: 'DMSans_400Regular', fontSize: 14, color: Colors.textSecondary },
-  cancelledBox: { padding: Spacing.screen, alignItems: 'center', gap: 12 },
-  cancelledTxt: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 22, color: Colors.error },
-  itemsSection: { padding: Spacing.screen, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  sectionLabel: { fontFamily: 'DMSans_700Bold', fontSize: 11, color: Colors.textSecondary, letterSpacing: 2, marginBottom: 12 },
-  itemRow: { flexDirection: 'row', alignItems: 'center', paddingVertical: 7 },
-  itemQty: { fontFamily: 'DMSans_700Bold', fontSize: 14, color: Colors.textSecondary, width: 28 },
-  itemName: { flex: 1, fontFamily: 'DMSans_400Regular', fontSize: 14, color: Colors.textPrimary },
-  itemPrice: { fontFamily: 'DMSans_500Medium', fontSize: 14, color: Colors.textPrimary },
-  priceSection: { padding: Spacing.screen, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  priceRow: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  priceLabel: { fontFamily: 'DMSans_400Regular', fontSize: 15, color: Colors.textSecondary },
-  priceVal: { fontFamily: 'DMSans_500Medium', fontSize: 15, color: Colors.textPrimary },
-  totalRow: { borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 12, marginTop: 4 },
-  totalLabel: { fontFamily: 'DMSans_700Bold', fontSize: 18, color: Colors.textPrimary },
-  totalVal: { fontFamily: 'DMSans_700Bold', fontSize: 20, color: Colors.textPrimary },
-  paymentMethod: { fontFamily: 'DMSans_400Regular', fontSize: 13, color: Colors.textSecondary, marginTop: 8 },
-  addressSection: { padding: Spacing.screen, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  address: { fontFamily: 'DMSans_400Regular', fontSize: 15, color: Colors.textPrimary, lineHeight: 22 },
-  backBtn: { margin: Spacing.screen, height: 48, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, alignItems: 'center', justifyContent: 'center' },
-  backBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 14, color: Colors.textPrimary, letterSpacing: 1 },
+  container: { flex: 1, backgroundColor: Colors.background, paddingHorizontal: Spacing.screen },
+
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingVertical: 16 },
+  title: { fontFamily: 'DMSans_700Bold', fontSize: 18, color: Colors.textPrimary },
+
+  etaCard: {
+    alignItems: 'center', padding: 24, marginBottom: 24,
+    backgroundColor: Colors.surface,
+    ...Brutalist, borderColor: Colors.secondary, borderWidth: 1,
+  },
+  etaLabel: { fontFamily: 'DMSans_700Bold', fontSize: 11, color: Colors.textSecondary, letterSpacing: 2, marginBottom: 8 },
+  etaRow: { flexDirection: 'row', alignItems: 'baseline', gap: 4, marginBottom: 8 },
+  etaTime: { fontFamily: 'DMSans_700Bold', fontSize: 56, color: Colors.primary },
+  etaUnit: { fontFamily: 'DMSans_500Medium', fontSize: 20, color: Colors.textSecondary },
+  statusLabel: { fontFamily: 'DMSans_500Medium', fontSize: 14, color: Colors.tertiary },
+
+  progressSection: { marginBottom: 24 },
+  progressTrack: {
+    height: 6, backgroundColor: Colors.surfaceLight, borderRadius: 3, overflow: 'hidden',
+    marginBottom: 16, borderWidth: 1, borderColor: Colors.border,
+  },
+  progressFill: {
+    height: '100%', backgroundColor: Colors.tertiary, borderRadius: 3,
+  },
+  stepsRow: { flexDirection: 'row', justifyContent: 'space-between' },
+  stepCol: { alignItems: 'center', flex: 1 },
+  stepDot: {
+    width: 24, height: 24, borderRadius: 12,
+    backgroundColor: Colors.surfaceLight, borderWidth: 2, borderColor: Colors.border,
+    alignItems: 'center', justifyContent: 'center', marginBottom: 4,
+  },
+  stepDotActive: { backgroundColor: Colors.primary, borderColor: Colors.secondary },
+  stepLabel: { fontFamily: 'DMSans_400Regular', fontSize: 10, color: Colors.textSecondary, textAlign: 'center' },
+  stepLabelActive: { fontFamily: 'DMSans_700Bold', color: Colors.textPrimary },
+
+  captainCard: {
+    flexDirection: 'row', alignItems: 'center', gap: 14,
+    padding: 16, marginBottom: 20,
+    backgroundColor: Colors.surface,
+    ...Brutalist, borderColor: Colors.secondary, borderWidth: 1,
+  },
+  captainAvatar: {
+    width: 48, height: 48, borderRadius: 24,
+    backgroundColor: Colors.surfaceLight, alignItems: 'center', justifyContent: 'center',
+    borderWidth: 2, borderColor: Colors.primary,
+  },
+  captainName: { fontFamily: 'DMSans_700Bold', fontSize: 16, color: Colors.textPrimary },
+  captainRole: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary },
+  callBtn: {
+    width: 40, height: 40, borderRadius: 20,
+    backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center',
+  },
+
+  detailCard: {
+    padding: 16, backgroundColor: Colors.surfaceLight,
+    borderWidth: 1, borderColor: Colors.border, marginBottom: 20,
+  },
+  detailLabel: { fontFamily: 'DMSans_700Bold', fontSize: 11, color: Colors.textSecondary, letterSpacing: 2 },
+  detailVal: { fontFamily: 'DMSans_500Medium', fontSize: 14, color: Colors.textPrimary, marginTop: 4 },
+
+  footer: { marginTop: 'auto', paddingBottom: 32 },
+  homeBtn: {
+    height: 52, backgroundColor: Colors.primary,
+    alignItems: 'center', justifyContent: 'center',
+    ...Brutalist, borderColor: Colors.secondary,
+  },
+  homeBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 15, color: Colors.primaryFg, letterSpacing: 2 },
 });
