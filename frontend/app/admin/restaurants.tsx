@@ -112,6 +112,14 @@ export default function AdminRestaurants() {
                 <Text style={s.cardName} numberOfLines={1}>{r.name}</Text>
                 <Text style={s.cardCuisine}>{r.cuisine?.join(' · ')}</Text>
                 <Text style={s.cardStats}>{r.rating}★ · {r.price_range} · {r.delivery_time}</Text>
+                <TouchableOpacity
+                  testID={`inventory-rest-${r.id}`}
+                  style={s.inventoryBtn}
+                  onPress={() => router.push(`/admin/inventory/${r.id}` as any)}
+                >
+                  <Ionicons name="list-outline" size={13} color={Colors.primary} />
+                  <Text style={s.inventoryBtnTxt}>INVENTORY</Text>
+                </TouchableOpacity>
               </View>
               <View style={s.cardActions}>
                 <TouchableOpacity testID={`edit-rest-${r.id}`} style={s.actionBtn} onPress={() => openEdit(r)}>
@@ -165,11 +173,13 @@ const s = StyleSheet.create({
   title: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 22, color: Colors.textPrimary },
   addBtn: { width: 44, height: 44, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
   card: { flexDirection: 'row', borderWidth: 1, borderColor: Colors.border, marginBottom: 10, overflow: 'hidden', backgroundColor: Colors.surface },
-  cardImg: { width: 80, height: 80, resizeMode: 'cover' },
+  cardImg: { width: 80, height: 90, resizeMode: 'cover' },
   cardInfo: { flex: 1, padding: 12 },
   cardName: { fontFamily: 'DMSans_700Bold', fontSize: 15, color: Colors.textPrimary },
   cardCuisine: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   cardStats: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary, marginTop: 4 },
+  inventoryBtn: { flexDirection: 'row', alignItems: 'center', gap: 4, marginTop: 6, alignSelf: 'flex-start', borderWidth: 1, borderColor: Colors.primary, paddingHorizontal: 8, paddingVertical: 3 },
+  inventoryBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 11, color: Colors.primary, letterSpacing: 0.5 },
   cardActions: { justifyContent: 'center', paddingHorizontal: 12, gap: 12 },
   actionBtn: { width: 36, height: 36, alignItems: 'center', justifyContent: 'center' },
 });

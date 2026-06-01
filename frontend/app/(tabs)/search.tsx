@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import {
   View, Text, TextInput, StyleSheet, TouchableOpacity,
   FlatList, Image, ActivityIndicator,
@@ -9,6 +9,8 @@ import { LinearGradient } from 'expo-linear-gradient';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
 import { Colors, Spacing } from '@/constants/theme';
+import { useDebounce } from '@/hooks/useDebounce';
+import { SkeletonLoader } from '@/components/SkeletonLoader';
 
 const PRICE_RANGES = ['All', '$', '$$', '$$$', '$$$$'];
 const MIN_RATINGS = [0, 4.0, 4.5, 4.8];
@@ -22,8 +24,17 @@ export default function Search() {
   const [searched, setSearched] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  
+  const debouncedQuery = useDebounce(query, 300);
 
-  const doSearch = useCallback(async (q = query, price = priceFilter, rating = ratingFilter) => {
+  const doSearch = useCallback(async (q = debouncedQuery, price = priceFilter, rating = ratingFilter) => {
+    // Don't search if all filters are empty/default
+    if (!q.trim() && price === 'All' && rating === 0) {
+      setResults([]);
+      setSearched(false);
+      return;
+    }
+    
     setLoading(true); setSearched(true);
     try {
       const params: any = {};
@@ -34,7 +45,13 @@ export default function Search() {
       setResults(data);
     } catch { setResults([]); }
     finally { setLoading(false); }
-  }, [query, priceFilter, ratingFilter]);
+  }, [debouncedQuery, priceFilter, ratingFilter]);
+
+  // Trigger search when debounced query or filters change
+  useEffect(() => {
+    doSearch();
+  }, [debouncedQuery, priceFilter, ratingFilter, doSearch]);
+
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
@@ -88,13 +105,17 @@ export default function Search() {
         </View>
       </View>
 
-      <TouchableOpacity testID="search-btn" style={s.searchBtn} onPress={() => doSearch()}>
-        <Text style={s.searchBtnTxt}>SEARCH</Text>
-      </TouchableOpacity>
+      {/* Manual Search Button Removed for Live Search UX */}
 
       {/* Results */}
       {loading ? (
-        <ActivityIndicator color={Colors.primary} style={{ marginTop: 40 }} />
+        <View style={{ padding: Spacing.screen }}>
+          <SkeletonLoader type="searchResult" />
+          <SkeletonLoader type="searchResult" />
+          <SkeletonLoader type="searchResult" />
+          <SkeletonLoader type="searchResult" />
+          <SkeletonLoader type="searchResult" />
+        </View>
       ) : searched ? (
         <FlatList
           data={results}
@@ -102,17 +123,14 @@ export default function Search() {
           contentContainerStyle={{ padding: Spacing.screen }}
           ListEmptyComponent={<Text style={s.empty}>No restaurants found</Text>}
           renderItem={({ item: r }) => (
-            <TouchableOpacity testID={`search-result-${r.id}`} style={s.resultCard}
+            <TouchableOpacity testID={`search-result-${r.id}`} style={s.suggestionItem}
               onPress={() => router.push(`/restaurant/${r.id}`)}>
-              <Image source={{ uri: r.image }} style={s.resultImg} />
-              <View style={s.resultInfo}>
-                <Text style={s.resultName}>{r.name}</Text>
-                <Text style={s.resultCuisine}>{r.cuisine?.join(' • ')}</Text>
-                <View style={s.resultMeta}>
-                  <Ionicons name="star" size={12} color="#FFD700" />
-                  <Text style={s.metaTxt}>{r.rating} · {r.delivery_time} · {r.price_range}</Text>
-                </View>
+              <Image source={{ uri: r.image }} style={s.suggestionImg} />
+              <View style={s.suggestionInfo}>
+                <Text style={s.suggestionName}>{r.name}</Text>
+                <Text style={s.suggestionCuisine}>{r.cuisine?.join(', ')}</Text>
               </View>
+              <Ionicons name="arrow-forward" size={16} color={Colors.border} />
             </TouchableOpacity>
           )}
         />
@@ -142,13 +160,11 @@ const s = StyleSheet.create({
   searchBtn: { marginHorizontal: Spacing.screen, height: 48, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', marginBottom: 20 },
   searchBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 14, color: Colors.primaryFg, letterSpacing: 2 },
   empty: { fontFamily: 'DMSans_400Regular', color: Colors.textSecondary, fontSize: 16, textAlign: 'center', marginTop: 40 },
-  resultCard: { flexDirection: 'row', marginBottom: 16, borderWidth: 1, borderColor: Colors.border, overflow: 'hidden' },
-  resultImg: { width: 90, height: 90, resizeMode: 'cover' },
-  resultInfo: { flex: 1, padding: 12, justifyContent: 'center' },
-  resultName: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 16, color: Colors.textPrimary, marginBottom: 4 },
-  resultCuisine: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary, marginBottom: 6 },
-  resultMeta: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  metaTxt: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary },
+  suggestionItem: { flexDirection: 'row', alignItems: 'center', paddingVertical: 12, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  suggestionImg: { width: 40, height: 40, borderRadius: 20, marginRight: 12 },
+  suggestionInfo: { flex: 1 },
+  suggestionName: { fontFamily: 'DMSans_500Medium', fontSize: 15, color: Colors.textPrimary },
+  suggestionCuisine: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   hint: { flex: 1, alignItems: 'center', justifyContent: 'center', marginTop: 80 },
   hintTxt: { fontFamily: 'DMSans_400Regular', fontSize: 16, color: Colors.textSecondary, marginTop: 16 },
 });

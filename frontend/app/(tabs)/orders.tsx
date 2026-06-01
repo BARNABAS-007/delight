@@ -7,6 +7,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
+import { useCart } from '@/context/CartContext';
 import { Colors, Spacing } from '@/constants/theme';
 
 const STATUS_COLORS: Record<string, string> = {
@@ -24,6 +25,7 @@ export default function Orders() {
   const [refreshing, setRefreshing] = useState(false);
   const router = useRouter();
   const insets = useSafeAreaInsets();
+  const { clearCart, addToCart } = useCart();
 
   const load = useCallback(async () => {
     try {
@@ -34,6 +36,19 @@ export default function Orders() {
   }, []);
 
   useEffect(() => { load(); }, []);
+
+  const handleReorder = (order: any) => {
+    clearCart();
+    const rest = { 
+      id: order.restaurant_id, 
+      name: order.restaurant_name, 
+      image: order.restaurant_image 
+    };
+    order.items?.forEach((item: any) => {
+      addToCart(rest, item);
+    });
+    router.push('/(tabs)/cart');
+  };
 
   return (
     <View style={[s.container, { paddingTop: insets.top }]}>
@@ -47,7 +62,7 @@ export default function Orders() {
         <FlatList
           data={orders}
           keyExtractor={o => o.id}
-          contentContainerStyle={{ paddingHorizontal: Spacing.screen, paddingBottom: 24 }}
+          contentContainerStyle={{ paddingHorizontal: Spacing.screen, paddingBottom: 140 }}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={() => { setRefreshing(true); load(); }} tintColor={Colors.primary} />}
           ListEmptyComponent={
             <View style={s.empty}>
@@ -78,8 +93,14 @@ export default function Orders() {
                 </View>
               </View>
               <View style={s.cardFooter}>
-                <Text style={s.itemCount}>{o.items?.length} item{o.items?.length !== 1 ? 's' : ''}</Text>
-                <Text style={s.total}>${o.total?.toFixed(2)}</Text>
+                <View>
+                  <Text style={s.itemCount}>{o.items?.length} item{o.items?.length !== 1 ? 's' : ''}</Text>
+                  <Text style={s.total}>₹{(o.total_amount ?? o.total ?? 0).toFixed(0)}</Text>
+                </View>
+                <TouchableOpacity style={s.reorderBtn} onPress={() => handleReorder(o)}>
+                  <Ionicons name="refresh" size={16} color={Colors.primary} />
+                  <Text style={s.reorderTxt}>Re-order</Text>
+                </TouchableOpacity>
               </View>
             </TouchableOpacity>
           )}
@@ -98,7 +119,7 @@ const s = StyleSheet.create({
   emptySubtitle: { fontFamily: 'DMSans_400Regular', fontSize: 14, color: Colors.textSecondary, marginTop: 8, textAlign: 'center' },
   browseBtn: { marginTop: 24, height: 48, backgroundColor: Colors.primary, paddingHorizontal: 24, alignItems: 'center', justifyContent: 'center' },
   browseBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 14, color: Colors.primaryFg, letterSpacing: 1 },
-  card: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, marginBottom: 12, padding: 14 },
+  card: { backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border, marginBottom: 12, padding: 14, borderRadius: 12 },
   cardHeader: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 12 },
   cardLeft: { flexDirection: 'row', alignItems: 'center', flex: 1 },
   restImg: { width: 52, height: 52, resizeMode: 'cover', marginRight: 12 },
@@ -108,7 +129,9 @@ const s = StyleSheet.create({
   orderDate: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary, marginTop: 2 },
   statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderWidth: 1, borderRadius: 100 },
   statusTxt: { fontFamily: 'DMSans_700Bold', fontSize: 11 },
-  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 12 },
+  cardFooter: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-end', borderTopWidth: 1, borderTopColor: Colors.border, paddingTop: 12 },
   itemCount: { fontFamily: 'DMSans_400Regular', fontSize: 13, color: Colors.textSecondary },
   total: { fontFamily: 'DMSans_700Bold', fontSize: 16, color: Colors.textPrimary },
+  reorderBtn: { flexDirection: 'row', alignItems: 'center', gap: 6, backgroundColor: Colors.primary + '15', paddingHorizontal: 12, paddingVertical: 8, borderRadius: 100 },
+  reorderTxt: { fontFamily: 'DMSans_700Bold', fontSize: 13, color: Colors.primary },
 });

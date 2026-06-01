@@ -1,26 +1,34 @@
-// metro.config.js
-const { getDefaultConfig } = require("expo/metro-config");
-const { withNativeWind } = require("nativewind/metro");
+// metro.config.js — Performance-optimised for OneDrive / Windows
+const { getDefaultConfig } = require('expo/metro-config');
+const { withNativeWind } = require('nativewind/metro');
 const path = require('path');
 const { FileStore } = require('metro-cache');
 
 const config = getDefaultConfig(__dirname);
 
-// Use a stable on-disk store (shared across web/android)
-const root = process.env.METRO_CACHE_ROOT || path.join(__dirname, '.metro-cache');
-config.cacheStores = [
-  new FileStore({ root: path.join(root, 'cache') }),
+// ─── 1. Disk cache so nothing is re-compiled between restarts ────────────────
+const cacheRoot = path.join(__dirname, '.metro-cache');
+config.cacheStores = [new FileStore({ root: path.join(cacheRoot, 'cache') })];
+
+// ─── 2. Exclude huge folders Metro should never need to watch ─────────────────
+//    Biggest win on Windows / OneDrive — stops the file-watcher thrashing
+config.resolver.blockList = [
+  /.*\/android\/.*/,
+  /.*\/ios\/.*/,
+  /.*\/windows\/.*/,
+  /.*\/macos\/.*/,
+  /.*\/__tests__\/.*/,
+  /.*\.test\.[tj]sx?$/,
+  /.*\.spec\.[tj]sx?$/,
+  /.*\/dist\/.*/,
+  /.*\/build\/.*/,
+  /.*\/\.git\/.*/,
 ];
 
+// ─── 3. More workers = faster bundling on multi-core CPUs ────────────────────
+config.maxWorkers = 4;
 
-// // Exclude unnecessary directories from file watching
-// config.watchFolders = [__dirname];
-// config.resolver.blacklistRE = /(.*)\/(__tests__|android|ios|build|dist|.git|node_modules\/.*\/android|node_modules\/.*\/ios|node_modules\/.*\/windows|node_modules\/.*\/macos)(\/.*)?$/;
+// ─── 4. Only watch the project source directory ──────────────────────────────
+config.watchFolders = [__dirname];
 
-// // Alternative: use a more aggressive exclusion pattern
-// config.resolver.blacklistRE = /node_modules\/.*\/(android|ios|windows|macos|__tests__|\.git|.*\.android\.js|.*\.ios\.js)$/;
-
-// Reduce the number of workers to decrease resource usage
-config.maxWorkers = 2;
-
-module.exports = withNativeWind(config, { input: "./global.css" });
+module.exports = withNativeWind(config, { input: './global.css' });

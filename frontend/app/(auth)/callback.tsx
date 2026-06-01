@@ -3,9 +3,9 @@ import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
 import { Colors } from '@/constants/theme';
+import { supabase } from '@/lib/supabase';
 
 export default function Callback() {
-  const { loginWithGoogle } = useAuth();
   const router = useRouter();
   const processed = useRef(false);
 
@@ -13,24 +13,13 @@ export default function Callback() {
     if (processed.current) return;
     processed.current = true;
 
-    const extractSessionId = () => {
-      if (typeof window !== 'undefined') {
-        const hash = window.location.hash;
-        const match = hash.match(/session_id=([^&]+)/);
-        if (match) return decodeURIComponent(match[1]);
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        router.replace('/(tabs)');
+      } else {
+        router.replace('/(auth)/login');
       }
-      return null;
-    };
-
-    const sessionId = extractSessionId();
-    if (!sessionId) {
-      router.replace('/(auth)/login');
-      return;
-    }
-
-    loginWithGoogle(sessionId)
-      .then(() => router.replace('/(tabs)'))
-      .catch(() => router.replace('/(auth)/login'));
+    });
   }, []);
 
   return (

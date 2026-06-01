@@ -11,7 +11,7 @@ import {
   getAllRestaurantConfigs, RestaurantFinance,
 } from '@/lib/pricingEngine';
 import { api } from '@/services/api';
-import { Colors, Spacing, Brutalist } from '@/constants/theme';
+import { Colors, Spacing, Radius } from '@/constants/theme';
 import { useAuth } from '@/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 
@@ -144,9 +144,9 @@ export default function AdminSettings() {
 
                 {/* Packaging Fee */}
                 <Row label="Packaging Fee (₹)" value={`₹${cfg.packaging_fee}`}>
-                  <View style={s.nudgeRow}>
+                  <View style={rs.nudgeRow}>
                     <Nudge label="−₹5" onPress={() => updateField(r.id, 'packaging_fee', Math.max(0, cfg.packaging_fee - 5))} />
-                    <Text style={s.nudgeVal}>₹{cfg.packaging_fee}</Text>
+                    <Text style={rs.nudgeVal}>₹{cfg.packaging_fee}</Text>
                     <Nudge label="+₹5" onPress={() => updateField(r.id, 'packaging_fee', cfg.packaging_fee + 5)} />
                   </View>
                 </Row>
@@ -170,9 +170,9 @@ export default function AdminSettings() {
 
                 {/* Commission Rate */}
                 <Row label="Commission Rate">
-                  <View style={s.nudgeRow}>
+                  <View style={rs.nudgeRow}>
                     <Nudge label="−1%" onPress={() => updateField(r.id, 'commission_rate', parseFloat(Math.max(0, cfg.commission_rate - 0.01).toFixed(2)))} />
-                    <Text style={s.nudgeVal}>{(cfg.commission_rate * 100).toFixed(0)}%</Text>
+                    <Text style={rs.nudgeVal}>{(cfg.commission_rate * 100).toFixed(0)}%</Text>
                     <Nudge label="+1%" onPress={() => updateField(r.id, 'commission_rate', parseFloat(Math.min(0.5, cfg.commission_rate + 0.01).toFixed(2)))} />
                   </View>
                 </Row>
@@ -223,50 +223,50 @@ const rs = StyleSheet.create({
   row: { marginBottom: 14 },
   label: { fontFamily: 'DMSans_500Medium', fontSize: 12, color: Colors.textSecondary, marginBottom: 6, letterSpacing: 0.5 },
   nudgeRow: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  nudge: { paddingHorizontal: 14, paddingVertical: 6, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border },
+  nudge: { paddingHorizontal: 14, paddingVertical: 6, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.sm },
   nudgeTxt: { fontFamily: 'DMSans_700Bold', fontSize: 13, color: Colors.textPrimary },
   nudgeVal: { fontFamily: 'DMSans_700Bold', fontSize: 18, color: Colors.textPrimary, minWidth: 50, textAlign: 'center' },
 });
 
 const s = StyleSheet.create({
-  container: { flex: 1, backgroundColor: Colors.adminBg },
-  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.screen, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: '#2A2000' },
-  title: { fontFamily: 'DMSans_700Bold', fontSize: 20, color: Colors.adminFg, letterSpacing: 1 },
+  container: { flex: 1, backgroundColor: Colors.background },
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', paddingHorizontal: Spacing.screen, paddingVertical: 16, borderBottomWidth: 1, borderBottomColor: Colors.border },
+  title: { fontFamily: 'DMSans_700Bold', fontSize: 20, color: Colors.textPrimary, letterSpacing: 1 },
 
   globalCard: {
     margin: Spacing.screen, padding: 20,
-    backgroundColor: '#2A1A00',
-    ...Brutalist,
-    borderColor: Colors.primary,
+    backgroundColor: Colors.surface,
+    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: Radius.sm,
   },
   globalLabel: { fontFamily: 'DMSans_700Bold', fontSize: 13, color: Colors.primary, letterSpacing: 2, marginBottom: 4 },
-  globalNote: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: '#A08030', marginBottom: 16 },
+  globalNote: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary, marginBottom: 16 },
   feeRow: { flexDirection: 'row', alignItems: 'center', gap: 20, marginBottom: 16 },
-  feeBtn: { width: 40, height: 40, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center' },
+  feeBtn: { width: 40, height: 40, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.sm },
   feeVal: { fontFamily: 'DMSans_700Bold', fontSize: 32, color: Colors.primary, minWidth: 80, textAlign: 'center' },
 
   sectionLabel: { fontFamily: 'DMSans_700Bold', fontSize: 11, color: Colors.textSecondary, letterSpacing: 2, paddingHorizontal: Spacing.screen, marginBottom: 12 },
 
   restCard: {
     marginHorizontal: Spacing.screen, marginBottom: 16, padding: 16,
-    backgroundColor: '#221500',
-    ...Brutalist,
-    borderColor: Colors.secondary,
+    backgroundColor: Colors.surface,
+    borderWidth: 1, borderColor: Colors.border,
+    borderRadius: Radius.sm,
   },
   restName: { fontFamily: 'DMSans_700Bold', fontSize: 17, color: Colors.primary, marginBottom: 2 },
   restCat: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary, marginBottom: 16 },
 
   toggleRow: { flexDirection: 'row', gap: 8 },
-  toggleBtn: { paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: Colors.secondary },
+  toggleBtn: { paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: Colors.border, borderRadius: Radius.sm },
   toggleBtnActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
   toggleTxt: { fontFamily: 'DMSans_500Medium', fontSize: 13, color: Colors.textSecondary },
   toggleTxtActive: { color: Colors.primaryFg, fontFamily: 'DMSans_700Bold' },
 
-  profitPreview: { backgroundColor: '#1A1200', padding: 10, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: Colors.tertiary },
+  profitPreview: { backgroundColor: Colors.surfaceLight, padding: 10, marginBottom: 14, borderLeftWidth: 3, borderLeftColor: Colors.primary },
   profitLabel: { fontFamily: 'DMSans_400Regular', fontSize: 11, color: Colors.textSecondary },
-  profitVal: { fontFamily: 'DMSans_700Bold', fontSize: 16, color: Colors.tertiary },
+  profitVal: { fontFamily: 'DMSans_700Bold', fontSize: 16, color: Colors.primary },
 
-  saveBtn: { backgroundColor: Colors.primary, height: 44, alignItems: 'center', justifyContent: 'center' },
+  saveBtn: { backgroundColor: Colors.primary, height: 44, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.sm },
   savedBtn: { backgroundColor: Colors.success },
   saveBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 13, color: Colors.primaryFg, letterSpacing: 1.5 },
 });

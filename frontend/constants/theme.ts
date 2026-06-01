@@ -1,30 +1,29 @@
-// firstmeal Design System — Stitch x Blinkit Synergy
-// Palette: Gold #F8CB46 | Bronze #897541 | Cyan #64E0FF
+// Delight Design System — Vibrant Light Theme
 export const Colors = {
   // --- Core Palette ---
-  primary:      '#F8CB46', // Vibrant Gold
-  primaryFg:    '#1A1200', // Dark on Gold
-  secondary:    '#897541', // Muted Bronze (Brutalist borders)
-  tertiary:     '#64E0FF', // Electric Cyan (Speed Streak)
-  accent:       '#F8CB46',
+  primary:      '#6C35DE', // Vibrant Purple (UI 2 vibe)
+  primaryFg:    '#FFFFFF', // White text on primary
+  secondary:    '#E2E8F0', // Subtle border
+  tertiary:     '#F8FAFC', // Surface light
+  accent:       '#3E8E41', // Vibrant Green for tags/Add buttons
 
   // --- Backgrounds ---
-  background:   '#FFFDF5',
-  surface:      '#FFFFFF',
-  surfaceLight: '#FFF8E7',
+  background:   '#F4F6F9', // Light gray background
+  surface:      '#FFFFFF', // Pure white cards
+  surfaceLight: '#F1F5F9', // Slight off-white
 
   // --- Text ---
-  textPrimary:   '#1A1200',
-  textSecondary: '#6B5E35',
+  textPrimary:   '#1E293B', // Dark slate for primary text
+  textSecondary: '#64748B', // Muted slate for secondary text
 
   // --- Utility ---
-  border:   '#E8D8A0',
-  error:    '#FF3B30',
-  success:  '#34C759',
+  border:   '#E2E8F0',
+  error:    '#EF4444', // Vibrant Red
+  success:  '#22C55E', // Vibrant Green
 
   // --- Admin ---
-  adminBg:  '#1A1200',
-  adminFg:  '#F8CB46',
+  adminBg:  '#F4F6F9',
+  adminFg:  '#1E293B',
 };
 
 export const Spacing = {
@@ -32,14 +31,7 @@ export const Spacing = {
 };
 
 export const FontSize = {
-  h1: 40, h2: 32, h3: 24, body: 16, caption: 12, sm: 14,
+  h1: 36, h2: 28, h3: 22, body: 16, caption: 12, sm: 14,
 };
 
-// Brutalist offset: apply borderBottomWidth: 4, borderRightWidth: 4 using Colors.secondary
-export const Brutalist = {
-  borderBottomWidth: 4,
-  borderRightWidth: 4,
-  borderColor: '#897541',
-};
-
-export const Radius = { sm: 4, md: 8, lg: 16, full: 100 };
+export const Radius = { sm: 8, md: 12, lg: 16, xl: 24, full: 100 };

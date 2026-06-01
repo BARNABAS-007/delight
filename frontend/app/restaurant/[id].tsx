@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react';
 import {
   View, Text, ScrollView, StyleSheet, TouchableOpacity,
-  ActivityIndicator, Animated,
+  ActivityIndicator, Animated, Image,
 } from 'react-native';
 import { useLocalSearchParams, useRouter } from 'expo-router';
 import { LinearGradient } from 'expo-linear-gradient';
@@ -10,7 +10,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
 import { useCart } from '@/context/CartContext';
 import SpeedStreak from '@/components/SpeedStreak';
-import { Colors, Spacing, Brutalist } from '@/constants/theme';
+import { Colors, Spacing, Radius } from '@/constants/theme';
 
 export default function RestaurantDetail() {
   const { id, mode } = useLocalSearchParams<{ id: string; mode?: string }>();
@@ -20,7 +20,7 @@ export default function RestaurantDetail() {
   const [adding, setAdding] = useState<string | null>(null);
   const [reserveSuccess, setReserveSuccess] = useState(false);
 
-  const { addToCart, itemCount, cart, streakVisible } = useCart();
+  const { addToCart, itemCount, grandTotal, streakVisible } = useCart();
   const router = useRouter();
   const insets = useSafeAreaInsets();
   const scrollY = useRef(new Animated.Value(0)).current;
@@ -34,11 +34,11 @@ export default function RestaurantDetail() {
       .finally(() => setLoading(false));
   }, [id]);
 
-  const cartTotal = cart.pricing?.customer_total ?? 0;
+  const cartTotal = grandTotal ?? 0;
 
   const handleAddItem = (item: any) => {
     setAdding(item.id);
-    const success = addToCart(
+    addToCart(
       {
         id: id as string,
         name: restaurant.name,
@@ -63,6 +63,7 @@ export default function RestaurantDetail() {
   };
 
   const heroOpacity = scrollY.interpolate({ inputRange: [0, 200], outputRange: [1, 0], extrapolate: 'clamp' });
+  const heroScale = scrollY.interpolate({ inputRange: [-200, 0], outputRange: [1.5, 1], extrapolate: 'clamp' });
 
   if (loading) return <View style={s.loader}><ActivityIndicator size="large" color={Colors.primary} /></View>;
   if (!restaurant) return <View style={s.loader}><Text style={s.errTxt}>Restaurant not found</Text></View>;
@@ -70,15 +71,15 @@ export default function RestaurantDetail() {
   const cats = restaurant.menu_categories || [];
 
   return (
-    <View style={[s.container, { paddingTop: insets.top }]}>
+    <View style={s.container}>
       <SpeedStreak visible={streakVisible} />
 
       {/* Back + Cart Header */}
-      <View style={s.topBar}>
-        <TouchableOpacity testID="back-btn" style={s.iconBtn} onPress={() => router.back()}>
-          <Ionicons name="arrow-back" size={24} color={Colors.primary} />
+      <View style={[s.topBar, { paddingTop: insets.top + 16 }]}>
+        <TouchableOpacity testID="back-btn" style={s.iconBtn} onPress={() => router.back()} activeOpacity={0.8}>
+          <Ionicons name="arrow-back" size={24} color={Colors.primaryFg} />
         </TouchableOpacity>
-        <TouchableOpacity testID="cart-btn" style={s.cartBtn} onPress={() => router.push('/(tabs)/cart')}>
+        <TouchableOpacity testID="cart-btn" style={s.cartBtn} onPress={() => router.push('/(tabs)/cart')} activeOpacity={0.8}>
           <Ionicons name="bag-outline" size={22} color={Colors.primaryFg} />
           {itemCount > 0 && <View style={s.badge}><Text style={s.badgeTxt}>{itemCount}</Text></View>}
         </TouchableOpacity>
@@ -88,21 +89,34 @@ export default function RestaurantDetail() {
         showsVerticalScrollIndicator={false}
         onScroll={Animated.event([{ nativeEvent: { contentOffset: { y: scrollY } } }], { useNativeDriver: true })}
         scrollEventThrottle={16}
+        contentContainerStyle={{ paddingBottom: 100 }}
       >
         {/* Hero */}
-        <Animated.View style={[s.heroWrap, { opacity: heroOpacity }]}>
-          <LinearGradient colors={['#F8CB46', '#897541']} start={{ x: 0, y: 0 }} end={{ x: 1, y: 1 }} style={StyleSheet.absoluteFill} />
-          <View style={s.heroContent}>
+        <Animated.View style={[s.heroWrap, { transform: [{ scale: heroScale }] }]}>
+          {restaurant.image ? (
+            <Image source={{ uri: restaurant.image }} style={StyleSheet.absoluteFill} />
+          ) : (
+            <View style={[StyleSheet.absoluteFill, { backgroundColor: Colors.surface }]} />
+          )}
+          <LinearGradient colors={['transparent', 'rgba(5,5,5,0.9)', Colors.background]} style={StyleSheet.absoluteFill} />
+          <Animated.View style={[s.heroContent, { opacity: heroOpacity }]}>
             <Text style={s.heroName}>{restaurant.name}</Text>
             <Text style={s.heroCuisine}>{restaurant.cuisine?.join(' · ')}</Text>
-          </View>
+          </Animated.View>
         </Animated.View>
+
+        {restaurant.is_open === false && (
+          <View style={s.closedBanner}>
+            <Ionicons name="alert-circle" size={16} color="#FFF" />
+            <Text style={s.closedBannerTxt}>CURRENTLY CLOSED — NOT ACCEPTING ORDERS</Text>
+          </View>
+        )}
 
         {/* Info Card */}
         <View style={s.infoCard}>
           <View style={s.infoRow}>
             <InfoPill icon="star" text={`${restaurant.rating ?? '4.5'}`} />
-            <InfoPill icon="flash-sharp" text={restaurant.delivery_time ?? '25 min'} />
+            <InfoPill icon="time-outline" text={restaurant.delivery_time ?? '25 min'} />
             <InfoPill icon="bicycle-outline" text={`₹${restaurant.delivery_fee ?? '30'}`} />
           </View>
           {restaurant.description && <Text style={s.desc}>{restaurant.description}</Text>}
@@ -134,6 +148,7 @@ export default function RestaurantDetail() {
                 key={cat.id} testID={`category-${cat.id}`}
                 style={[s.catChip, activeCategory === i && s.catChipActive]}
                 onPress={() => setActiveCategory(i)}
+                activeOpacity={0.8}
               >
                 <Text style={[s.catTxt, activeCategory === i && s.catTxtActive]}>{cat.name}</Text>
               </TouchableOpacity>
@@ -141,51 +156,66 @@ export default function RestaurantDetail() {
           </ScrollView>
         )}
 
-        {/* Menu Items */}
-        {!isDineout && cats.map((cat: any, ci: number) => (
-          ci === activeCategory && cat.items.map((item: any) => (
+        {/* Menu Items — render only the active category's items */}
+        {!isDineout && (() => {
+          const activeCat = cats[activeCategory];
+          if (!activeCat) return null;
+          return (activeCat.items ?? []).map((item: any) => (
             <View key={item.id} testID={`menu-item-${item.id}`} style={s.menuItem}>
               <View style={s.menuInfo}>
                 <View style={s.menuTop}>
-                  <Text style={s.menuName}>{item.name}</Text>
-                  {item.is_popular && (
-                    <View style={s.popularBadge}><Text style={s.popularTxt}>BEST SELLER</Text></View>
+                  <View style={s.vegIcon}><View style={s.vegDot}/></View>
+                  <View style={s.lovedBadge}>
+                    <Ionicons name="heart" size={12} color="#EF4444" />
+                    <Text style={s.lovedTxt}>loved by many</Text>
+                  </View>
+                </View>
+                <Text style={s.menuName}>{item.name}</Text>
+                {item.description && <Text style={s.menuDesc} numberOfLines={2}>{item.description}</Text>}
+                <Text style={s.menuPrice}>₹{item.price.toFixed(2)}</Text>
+              </View>
+
+              <View style={s.menuImageCol}>
+                <View style={s.menuImageWrapper}>
+                  {item.image ? (
+                    <Image source={{ uri: item.image }} style={StyleSheet.absoluteFillObject} />
+                  ) : (
+                    <View style={{ flex: 1, backgroundColor: '#F4F6F0' }} />
                   )}
                 </View>
-                {item.description && <Text style={s.menuDesc} numberOfLines={2}>{item.description}</Text>}
-                <View style={s.menuBottom}>
-                  <Text style={s.menuPrice}>₹{item.price.toFixed(2)}</Text>
-                  {item.is_available !== false ? (
+                {item.is_available !== false && restaurant.is_open !== false ? (
+                  <View style={s.addBtnWrapper}>
                     <TouchableOpacity
                       testID={`add-item-${item.id}`}
-                      style={s.addBtn}
+                      style={s.addBtnLight}
                       onPress={() => handleAddItem(item)}
                       disabled={adding === item.id}
                       activeOpacity={0.85}
                     >
                       {adding === item.id ? (
-                        <ActivityIndicator size="small" color={Colors.primaryFg} />
+                        <ActivityIndicator size="small" color={Colors.accent} />
                       ) : (
-                        <Text style={s.addBtnTxt}>ADD</Text>
+                        <Text style={s.addBtnTxtLight}>Add</Text>
                       )}
                     </TouchableOpacity>
-                  ) : (
-                    <Text style={s.unavailable}>Unavailable</Text>
-                  )}
-                </View>
+                    <Text style={s.addBtnSubTxt}>Options</Text>
+                  </View>
+                ) : (
+                  <Text style={s.unavailable}>{restaurant.is_open === false ? 'Closed' : 'Unavailable'}</Text>
+                )}
               </View>
             </View>
-          ))
-        ))}
-        <View style={{ height: 100 }} />
+          ));
+        })()}
       </Animated.ScrollView>
 
       {/* Bottom Cart Bar */}
       {itemCount > 0 && !isDineout && (
         <TouchableOpacity
           testID="view-cart-btn"
-          style={[s.cartBar, { bottom: insets.bottom + 8 }]}
+          style={[s.cartBar, { bottom: insets.bottom + 16 }]}
           onPress={() => router.push('/(tabs)/cart')}
+          activeOpacity={0.9}
         >
           <View style={s.cartBarLeft}>
             <View style={s.cartCountBadge}><Text style={s.cartCountTxt}>{itemCount}</Text></View>
@@ -201,7 +231,7 @@ export default function RestaurantDetail() {
 function InfoPill({ icon, text }: { icon: string; text: string }) {
   return (
     <View style={s.infoPill}>
-      <Ionicons name={icon as any} size={14} color={Colors.primary} />
+      <Ionicons name={icon as any} size={14} color={Colors.textSecondary} />
       <Text style={s.infoTxt}>{text}</Text>
     </View>
   );
@@ -212,63 +242,71 @@ const s = StyleSheet.create({
   loader: { flex: 1, backgroundColor: Colors.background, alignItems: 'center', justifyContent: 'center' },
   errTxt: { fontFamily: 'DMSans_400Regular', color: Colors.textSecondary, fontSize: 16 },
 
-  topBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10, padding: Spacing.screen, paddingTop: 16 },
-  iconBtn: { width: 44, height: 44, backgroundColor: 'rgba(26,18,0,0.5)', alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
-  cartBtn: { width: 44, height: 44, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', borderRadius: 22, ...Brutalist, borderColor: Colors.secondary },
-  badge: { position: 'absolute', top: -4, right: -4, width: 18, height: 18, backgroundColor: Colors.tertiary, borderRadius: 9, alignItems: 'center', justifyContent: 'center' },
-  badgeTxt: { fontFamily: 'DMSans_700Bold', fontSize: 10, color: '#001A20' },
+  topBar: { position: 'absolute', top: 0, left: 0, right: 0, flexDirection: 'row', justifyContent: 'space-between', zIndex: 10, paddingHorizontal: Spacing.screen },
+  iconBtn: { width: 44, height: 44, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
+  cartBtn: { width: 44, height: 44, backgroundColor: 'rgba(0,0,0,0.5)', alignItems: 'center', justifyContent: 'center', borderRadius: 22 },
+  badge: { position: 'absolute', top: -2, right: -2, width: 20, height: 20, backgroundColor: Colors.primary, borderRadius: 10, alignItems: 'center', justifyContent: 'center' },
+  badgeTxt: { fontFamily: 'DMSans_700Bold', fontSize: 11, color: Colors.primaryFg },
 
-  heroWrap: { height: 240, justifyContent: 'flex-end' },
-  heroContent: { padding: 20, paddingBottom: 24 },
-  heroName: { fontFamily: 'DMSans_700Bold', fontSize: 28, color: Colors.primaryFg },
-  heroCuisine: { fontFamily: 'DMSans_500Medium', fontSize: 14, color: 'rgba(26,18,0,0.6)', marginTop: 4 },
+  heroWrap: { height: 280, justifyContent: 'flex-end', backgroundColor: Colors.surface },
+  heroContent: { padding: Spacing.screen, paddingBottom: 24, zIndex: 10 },
+  heroName: { fontFamily: 'DMSans_700Bold', fontSize: 32, color: '#FFF' },
+  heroCuisine: { fontFamily: 'DMSans_500Medium', fontSize: 14, color: 'rgba(255,255,255,0.9)', marginTop: 4, letterSpacing: 0.5 },
 
-  infoCard: { padding: Spacing.screen, borderBottomWidth: 2, borderBottomColor: Colors.secondary, backgroundColor: Colors.surface },
-  infoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 10, marginBottom: 10 },
-  infoPill: { flexDirection: 'row', alignItems: 'center', gap: 4, paddingHorizontal: 10, paddingVertical: 5, backgroundColor: Colors.surfaceLight, borderWidth: 1, borderColor: Colors.border },
-  infoTxt: { fontFamily: 'DMSans_500Medium', fontSize: 13, color: Colors.textPrimary },
-  desc: { fontFamily: 'DMSans_400Regular', fontSize: 14, color: Colors.textSecondary, lineHeight: 20 },
+  infoCard: { paddingHorizontal: Spacing.screen, paddingBottom: 24, borderBottomWidth: 1, borderBottomColor: Colors.border, backgroundColor: Colors.background },
+  infoRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 12, marginBottom: 16 },
+  infoPill: { flexDirection: 'row', alignItems: 'center', gap: 6, paddingHorizontal: 12, paddingVertical: 6, backgroundColor: Colors.surface, borderRadius: Radius.sm },
+  infoTxt: { fontFamily: 'DMSans_500Medium', fontSize: 14, color: Colors.textPrimary },
+  desc: { fontFamily: 'DMSans_400Regular', fontSize: 15, color: Colors.textSecondary, lineHeight: 22 },
 
   reserveCard: {
-    margin: Spacing.screen, padding: 20,
+    margin: Spacing.screen, padding: 24,
     backgroundColor: Colors.surface,
-    ...Brutalist, borderColor: Colors.tertiary, borderWidth: 1,
+    borderRadius: Radius.sm, borderWidth: 1, borderColor: Colors.border,
   },
-  reserveTitle: { fontFamily: 'DMSans_700Bold', fontSize: 20, color: Colors.textPrimary, marginBottom: 6 },
-  reserveNote: { fontFamily: 'DMSans_400Regular', fontSize: 13, color: Colors.textSecondary, marginBottom: 16 },
-  reserveBtn: { height: 48, backgroundColor: Colors.tertiary, alignItems: 'center', justifyContent: 'center', ...Brutalist, borderColor: '#3CAFE0' },
+  reserveTitle: { fontFamily: 'PlayfairDisplay_600SemiBold', fontSize: 24, color: Colors.textPrimary, marginBottom: 8 },
+  reserveNote: { fontFamily: 'DMSans_400Regular', fontSize: 14, color: Colors.textSecondary, marginBottom: 20 },
+  reserveBtn: { height: 50, backgroundColor: Colors.primary, alignItems: 'center', justifyContent: 'center', borderRadius: Radius.sm },
   reserveBtnSuccess: { backgroundColor: Colors.success },
-  reserveBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 14, color: '#001A20', letterSpacing: 2 },
+  reserveBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 15, color: Colors.primaryFg, letterSpacing: 1 },
 
   catScroll: { borderBottomWidth: 1, borderBottomColor: Colors.border },
-  catContent: { paddingHorizontal: Spacing.screen, gap: 8, paddingVertical: 12 },
-  catChip: { paddingHorizontal: 16, paddingVertical: 8, borderWidth: 1, borderColor: Colors.border },
-  catChipActive: { backgroundColor: Colors.primary, borderColor: Colors.secondary, ...Brutalist },
-  catTxt: { fontFamily: 'DMSans_500Medium', fontSize: 13, color: Colors.textSecondary },
-  catTxtActive: { color: Colors.primaryFg },
+  catContent: { paddingHorizontal: Spacing.screen, gap: 12, paddingVertical: 16 },
+  catChip: { paddingHorizontal: 20, paddingVertical: 10, borderRadius: 20, backgroundColor: Colors.surface, borderWidth: 1, borderColor: Colors.border },
+  catChipActive: { backgroundColor: Colors.primary, borderColor: Colors.primary },
+  catTxt: { fontFamily: 'DMSans_500Medium', fontSize: 14, color: Colors.textPrimary },
+  catTxtActive: { color: Colors.primaryFg, fontFamily: 'DMSans_700Bold' },
 
-  menuItem: { flexDirection: 'row', padding: Spacing.screen, borderBottomWidth: 1, borderBottomColor: Colors.border },
-  menuInfo: { flex: 1 },
-  menuTop: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 4 },
-  menuName: { fontFamily: 'DMSans_700Bold', fontSize: 15, color: Colors.textPrimary, flex: 1, paddingRight: 8 },
-  popularBadge: { backgroundColor: Colors.primary, paddingHorizontal: 8, paddingVertical: 3 },
-  popularTxt: { fontFamily: 'DMSans_700Bold', fontSize: 9, color: Colors.primaryFg, letterSpacing: 1 },
-  menuDesc: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary, lineHeight: 17, marginBottom: 8 },
-  menuBottom: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  menuPrice: { fontFamily: 'DMSans_700Bold', fontSize: 17, color: Colors.primary },
-  addBtn: { paddingHorizontal: 20, paddingVertical: 8, backgroundColor: Colors.primary, ...Brutalist, borderColor: Colors.secondary },
-  addBtnTxt: { fontFamily: 'DMSans_700Bold', fontSize: 13, color: Colors.primaryFg, letterSpacing: 1 },
-  unavailable: { fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary },
+  menuItem: { flexDirection: 'row', padding: 16, marginBottom: 16, marginHorizontal: Spacing.screen, backgroundColor: Colors.surface, borderRadius: Radius.lg, shadowColor: '#000', shadowOffset: { width: 0, height: 2 }, shadowOpacity: 0.05, shadowRadius: 8, elevation: 3 },
+  menuInfo: { flex: 1, paddingRight: 16 },
+  menuTop: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 8 },
+  vegIcon: { width: 14, height: 14, borderWidth: 1, borderColor: Colors.accent, alignItems: 'center', justifyContent: 'center', borderRadius: 2 },
+  vegDot: { width: 6, height: 6, backgroundColor: Colors.accent, borderRadius: 3 },
+  lovedBadge: { flexDirection: 'row', alignItems: 'center', gap: 4, backgroundColor: '#FEF2F2', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 12 },
+  lovedTxt: { fontFamily: 'DMSans_500Medium', fontSize: 10, color: '#EF4444' },
+  menuName: { fontFamily: 'DMSans_700Bold', fontSize: 16, color: Colors.textPrimary, marginBottom: 4 },
+  menuDesc: { fontFamily: 'DMSans_400Regular', fontSize: 13, color: Colors.textSecondary, lineHeight: 18, marginBottom: 12 },
+  menuPrice: { fontFamily: 'DMSans_700Bold', fontSize: 16, color: Colors.textPrimary },
+  
+  menuImageCol: { width: 110, alignItems: 'center' },
+  menuImageWrapper: { width: 110, height: 110, borderRadius: Radius.md, backgroundColor: '#F4F6F0', overflow: 'hidden', marginBottom: -16 },
+  addBtnWrapper: { alignItems: 'center' },
+  addBtnLight: { width: 80, height: 36, backgroundColor: '#FFF', borderWidth: 1, borderColor: Colors.accent, borderRadius: Radius.md, alignItems: 'center', justifyContent: 'center', shadowColor: '#000', shadowOffset: {width:0, height:2}, shadowOpacity: 0.1, shadowRadius: 2, elevation: 2 },
+  addBtnTxtLight: { fontFamily: 'DMSans_700Bold', fontSize: 14, color: Colors.accent },
+  addBtnSubTxt: { fontFamily: 'DMSans_400Regular', fontSize: 10, color: Colors.textSecondary, marginTop: 4 },
+  unavailable: { fontFamily: 'DMSans_500Medium', fontSize: 14, color: Colors.textSecondary },
 
   cartBar: {
     position: 'absolute', left: Spacing.screen, right: Spacing.screen,
-    height: 56, backgroundColor: Colors.primary,
+    height: 60, backgroundColor: Colors.primary,
     flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center',
-    paddingHorizontal: 20, ...Brutalist, borderColor: Colors.secondary,
+    paddingHorizontal: 20, borderRadius: Radius.sm,
   },
   cartBarLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
-  cartCountBadge: { width: 24, height: 24, backgroundColor: 'rgba(26,18,0,0.2)', alignItems: 'center', justifyContent: 'center', borderRadius: 12 },
-  cartCountTxt: { fontFamily: 'DMSans_700Bold', fontSize: 13, color: Colors.primaryFg },
+  cartCountBadge: { width: 28, height: 28, backgroundColor: 'rgba(0,0,0,0.2)', alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
+  cartCountTxt: { fontFamily: 'DMSans_700Bold', fontSize: 14, color: Colors.primaryFg },
   cartBarTxt: { fontFamily: 'DMSans_700Bold', fontSize: 16, color: Colors.primaryFg, letterSpacing: 1 },
   cartBarTotal: { fontFamily: 'DMSans_700Bold', fontSize: 18, color: Colors.primaryFg },
+  closedBanner: { backgroundColor: Colors.error, paddingVertical: 12, paddingHorizontal: Spacing.screen, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
+  closedBannerTxt: { fontFamily: 'DMSans_700Bold', fontSize: 13, color: '#FFF', letterSpacing: 1 },
 });

@@ -9,17 +9,24 @@ load_dotenv(Path(__file__).parent / '.env')
 DATABASE_URL = os.environ["DATABASE_URL"]
 ASYNC_DATABASE_URL = DATABASE_URL.replace("postgresql://", "postgresql+asyncpg://")
 
+engine_kwargs = {
+    "echo": False,
+}
+if "postgresql" in ASYNC_DATABASE_URL:
+    engine_kwargs.update({
+        "pool_size": 5,
+        "max_overflow": 3,
+        "pool_timeout": 30,
+        "pool_recycle": 1800,
+        "connect_args": {
+            "statement_cache_size": 0,  # Required for Supabase transaction pooler
+            "command_timeout": 30,
+        }
+    })
+
 engine = create_async_engine(
     ASYNC_DATABASE_URL,
-    pool_size=5,
-    max_overflow=3,
-    pool_timeout=30,
-    pool_recycle=1800,
-    echo=False,
-    connect_args={
-        "statement_cache_size": 0,  # Required for Supabase transaction pooler
-        "command_timeout": 30,
-    },
+    **engine_kwargs
 )
 
 AsyncSessionLocal = async_sessionmaker(

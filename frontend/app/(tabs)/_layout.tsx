@@ -1,52 +1,73 @@
 import { Tabs } from 'expo-router';
-import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import { Colors, Brutalist } from '@/constants/theme';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { Colors, Radius } from '@/constants/theme';
 import { useCart } from '@/context/CartContext';
-import SpeedStreak from '@/components/SpeedStreak';
-import { useState } from 'react';
+import { useRouter } from 'expo-router';
 
-function CustomTabBar({ state, descriptors, navigation }: any) {
-  const { itemCount, streakVisible } = useCart();
+// ── Tab definitions ───────────────────────────────────────────────────────────
+const TABS = [
+  { name: 'index',   route: '/(tabs)',          icon: 'home-outline',      iconActive: 'home',          label: 'Home'    },
+  { name: 'search',  route: '/(tabs)/search',   icon: 'search-outline',    iconActive: 'search',        label: 'Search'  },
+  { name: 'orders',  route: '/(tabs)/orders',   icon: 'receipt-outline',   iconActive: 'receipt',       label: 'Orders'  },
+  { name: 'profile', route: '/(tabs)/profile',  icon: 'person-outline',    iconActive: 'person',        label: 'Profile' },
+];
 
-  const tabs = [
-    { name: 'index', icon: 'home', label: 'Home' },
-    { name: 'search', icon: 'search', label: 'Search' },
-    { name: 'cart', icon: 'bag-outline', label: 'Cart' },
-    { name: 'orders', icon: 'receipt-outline', label: 'Orders' },
-    { name: 'profile', icon: 'person-outline', label: 'Profile' },
-  ];
+// ── Custom bottom tab bar ─────────────────────────────────────────────────────
+function CustomTabBar({ state, navigation }: any) {
+  const { itemCount, grandTotal } = useCart();
+  const insets = useSafeAreaInsets();
+  const router = useRouter();
+
+  const bottomPad = Math.max(insets.bottom, 8);
 
   return (
-    <View style={s.barOuter}>
-      <SpeedStreak visible={streakVisible} />
-      <View style={s.bar}>
-        {state.routes.map((route: any, index: number) => {
-          const tab = tabs[index];
-          if (!tab) return null;
-          const focused = state.index === index;
-          const isCart = tab.name === 'cart';
+    <View style={[s.barOuter, { paddingBottom: bottomPad }]} pointerEvents="box-none">
+
+      {/* ── Floating Cart Widget (shown only when cart has items) ── */}
+      {itemCount > 0 && (
+        <TouchableOpacity
+          testID="floating-cart-btn"
+          style={s.floatingCart}
+          activeOpacity={0.9}
+          onPress={() => router.push('/(tabs)/cart')}
+        >
+          <View style={s.cartLeft}>
+            <View style={s.cartBadge}>
+              <Text style={s.cartBadgeTxt}>{itemCount}</Text>
+            </View>
+            <Text style={s.floatingCartTxt}>View Cart</Text>
+          </View>
+          <View style={s.cartRight}>
+            <Text style={s.cartTotal}>₹{(grandTotal ?? 0).toFixed(0)}</Text>
+            <View style={s.cartArrow}>
+              <Ionicons name="arrow-forward" size={16} color={Colors.error} />
+            </View>
+          </View>
+        </TouchableOpacity>
+      )}
+
+      {/* ── Pill Tab Bar ── */}
+      <View style={s.pillBar}>
+        {TABS.map((tab, i) => {
+          const focused = state.index === i;
           return (
             <TouchableOpacity
-              key={route.key}
+              key={tab.name}
               testID={`tab-${tab.name}`}
-              style={[s.tab, focused && s.tabActive]}
-              onPress={() => navigation.navigate(route.name)}
-              activeOpacity={0.7}
+              style={[s.tabItem, focused && s.tabItemActive]}
+              onPress={() => navigation.navigate(tab.name)}
+              activeOpacity={0.75}
             >
-              <View>
-                <Ionicons
-                  name={(focused ? tab.icon.replace('-outline', '') : tab.icon) as any}
-                  size={22}
-                  color={focused ? Colors.primary : Colors.textSecondary}
-                />
-                {isCart && itemCount > 0 && (
-                  <View style={s.badge}>
-                    <Text style={s.badgeTxt}>{itemCount}</Text>
-                  </View>
-                )}
-              </View>
-              <Text style={[s.label, focused && s.labelActive]}>{tab.label}</Text>
+              <Ionicons
+                name={(focused ? tab.iconActive : tab.icon) as any}
+                size={20}
+                color={focused ? Colors.primary : Colors.textSecondary}
+              />
+              {focused && (
+                <Text style={s.tabLabel}>{tab.label}</Text>
+              )}
             </TouchableOpacity>
           );
         })}
@@ -55,6 +76,7 @@ function CustomTabBar({ state, descriptors, navigation }: any) {
   );
 }
 
+// ── Layout ────────────────────────────────────────────────────────────────────
 export default function TabsLayout() {
   return (
     <Tabs
@@ -63,34 +85,94 @@ export default function TabsLayout() {
     >
       <Tabs.Screen name="index" />
       <Tabs.Screen name="search" />
-      <Tabs.Screen name="cart" />
       <Tabs.Screen name="orders" />
       <Tabs.Screen name="profile" />
+      {/* Hidden from tab bar but still accessible via router */}
+      <Tabs.Screen name="cart" options={{ href: null }} />
+      <Tabs.Screen name="addresses" options={{ href: null }} />
     </Tabs>
   );
 }
 
+// ── Styles ────────────────────────────────────────────────────────────────────
 const s = StyleSheet.create({
-  barOuter: { position: 'relative' },
-  bar: {
-    flexDirection: 'row', backgroundColor: Colors.surface,
-    borderTopWidth: 2, borderTopColor: Colors.secondary,
-    paddingBottom: 24, paddingTop: 10, paddingHorizontal: 8,
+  barOuter: {
+    position: 'absolute',
+    bottom: 0,
+    left: 0,
+    right: 0,
+    alignItems: 'center',
+    // Transparent so home content shows through
+    backgroundColor: 'transparent',
+    paddingHorizontal: 16,
+    gap: 10,
+    // Prevent the outer wrapper from blocking touches in its transparent area
+    ...(Platform.OS === 'web' ? {} : {}),
   },
-  tab: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', height: 48,
-    paddingVertical: 4,
+
+  // Floating cart
+  floatingCart: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    width: '100%',
+    backgroundColor: Colors.textPrimary,
+    paddingHorizontal: 20,
+    paddingVertical: 14,
+    borderRadius: Radius.full,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 6 },
+    shadowOpacity: 0.22,
+    shadowRadius: 12,
+    elevation: 10,
   },
-  tabActive: {},
-  label: {
-    fontFamily: 'DMSans_500Medium', fontSize: 10, color: Colors.textSecondary,
-    marginTop: 2,
-  },
-  labelActive: { color: Colors.primary, fontFamily: 'DMSans_700Bold' },
-  badge: {
-    position: 'absolute', top: -6, right: -10,
-    backgroundColor: Colors.tertiary, width: 16, height: 16, borderRadius: 8,
+  cartLeft: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  cartBadge: {
+    width: 26, height: 26, borderRadius: 13,
+    backgroundColor: Colors.error,
     alignItems: 'center', justifyContent: 'center',
   },
-  badgeTxt: { fontFamily: 'DMSans_700Bold', fontSize: 9, color: '#001A20' },
+  cartBadgeTxt: { fontFamily: 'DMSans_700Bold', fontSize: 12, color: '#FFF' },
+  floatingCartTxt: { fontFamily: 'DMSans_700Bold', fontSize: 15, color: '#FFF', letterSpacing: 0.3 },
+  cartRight: { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cartTotal: { fontFamily: 'DMSans_700Bold', fontSize: 16, color: 'rgba(255,255,255,0.85)' },
+  cartArrow: {
+    width: 30, height: 30, borderRadius: 15,
+    backgroundColor: '#FFF',
+    alignItems: 'center', justifyContent: 'center',
+  },
+
+  // Pill bar
+  pillBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderRadius: Radius.full,
+    padding: 6,
+    width: '100%',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 16,
+    elevation: 12,
+    borderWidth: 1,
+    borderColor: Colors.border,
+  },
+  tabItem: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 11,
+    borderRadius: Radius.full,
+  },
+  tabItemActive: {
+    backgroundColor: Colors.primary + '15', // 15% opacity tint
+  },
+  tabLabel: {
+    fontFamily: 'DMSans_700Bold',
+    fontSize: 13,
+    color: Colors.primary,
+  },
 });

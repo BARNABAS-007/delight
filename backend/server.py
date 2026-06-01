@@ -274,7 +274,7 @@ async def seed_all():
                     is_active=True, menu_categories=r["menu_categories"]
                 ))
         await session.commit()
-    print("✅ Seeding complete (PostgreSQL)")
+    print("Seeding complete (PostgreSQL)")
 
 # ── App Setup ─────────────────────────────────────────────────────────────────
 @asynccontextmanager

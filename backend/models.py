@@ -37,6 +37,7 @@ class Restaurant(Base):
     price_range = Column(String, default="$$")
     tags = Column(JSON, default=list)
     is_active = Column(Boolean, default=True)
+    owner_id = Column(String, nullable=True, index=True)
     menu_categories = Column(JSON, default=list)
     commission_rate = Column(Float, default=5.0)
     created_at = Column(DateTime(timezone=True), default=now_utc)
@@ -67,6 +68,8 @@ class Order(Base):
     total = Column(Float, default=0.0)
     status = Column(String, default="pending")
     delivery_address = Column(Text, default="")
+    delivery_lat = Column(Float, nullable=True)   # GPS latitude of customer drop-off
+    delivery_lng = Column(Float, nullable=True)   # GPS longitude of customer drop-off
     payment_method = Column(String, default="cod")
     estimated_delivery = Column(String, default="35-45 min")
     created_at = Column(DateTime(timezone=True), default=now_utc)

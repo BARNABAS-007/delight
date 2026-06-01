@@ -7,7 +7,7 @@ import { useRouter } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { api } from '@/services/api';
-import { Colors, Spacing, Brutalist } from '@/constants/theme';
+import { Colors, Spacing } from '@/constants/theme';
 
 const STATUS_OPTS = ['confirmed', 'preparing', 'out_for_delivery', 'delivered', 'cancelled'];
 const STATUS_LABELS: Record<string, string> = {
@@ -86,6 +86,14 @@ export default function AdminDashboard() {
             <Ionicons name="restaurant-outline" size={20} color={Colors.primary} />
             <Text style={s.manageBtnTxt}>Manage Restaurants</Text>
             <Ionicons name="chevron-forward" size={16} color={Colors.textSecondary} />
+          </TouchableOpacity>
+
+          {/* Inventory Link */}
+          <TouchableOpacity testID="manage-inventory-btn" style={[s.manageBtn, { borderColor: '#4CAF50' }]}
+            onPress={() => router.push('/admin/restaurants')}>
+            <Ionicons name="list-outline" size={20} color="#4CAF50" />
+            <Text style={[s.manageBtnTxt, { color: '#4CAF50' }]}>Manage Inventory</Text>
+            <Text style={{ fontFamily: 'DMSans_400Regular', fontSize: 12, color: Colors.textSecondary }}>Select a restaurant →</Text>
           </TouchableOpacity>
 
           {/* Finance Settings Link */}

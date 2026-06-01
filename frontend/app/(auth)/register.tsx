@@ -1,15 +1,18 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ActivityIndicator, ScrollView, KeyboardAvoidingView,
-  Platform, ImageBackground, Dimensions, StatusBar,
+  Platform, Dimensions, StatusBar,
 } from 'react-native';
+import { MaterialIcons } from '@expo/vector-icons';
+import { Image } from 'expo-image';
 import { LinearGradient } from 'expo-linear-gradient';
 import { useRouter } from 'expo-router';
 import { useAuth } from '@/context/AuthContext';
-import { Colors } from '@/constants/theme';
+import { Colors, Radius, Spacing } from '@/constants/theme';
 
-const { width } = Dimensions.get('window');
+const { width, height: SCREEN_HEIGHT } = Dimensions.get('window');
+const IMAGE_HEIGHT = Math.round(SCREEN_HEIGHT * 0.45); // 45% of screen
 
 export default function Register() {
   const [name, setName] = useState('');
@@ -18,6 +21,15 @@ export default function Register() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
+  
+  const [nameFocused, setNameFocused] = useState(false);
+  const [emailFocused, setEmailFocused] = useState(false);
+  const [passwordFocused, setPasswordFocused] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+
+  const emailInputRef = useRef<TextInput>(null);
+  const passwordInputRef = useRef<TextInput>(null);
+  
   const { register } = useAuth();
   const router = useRouter();
 
@@ -60,65 +72,91 @@ export default function Register() {
   return (
     <KeyboardAvoidingView 
       style={s.container} 
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
     >
-      <StatusBar barStyle="light-content" />
+      <StatusBar barStyle="light-content" translucent backgroundColor="transparent" />
       
       {/* 45% Hero Image Section */}
-      <View style={s.heroSection}>
-        <ImageBackground
-          source={{ uri: 'https://lh3.googleusercontent.com/aida-public/AB6AXuB45-O820ZivUslh4TSgIauvbZQKrlr86i-UBxQnU024AyUBVi7_Cq-BcBkQ8mQOU6zEgqo5BRQEMYQ0H2qw70v0LG7LKjTqIpWStg7Gv-Q2hl6D7zKb-hFvHwuJquM3XA9bPZK1hJ5b0WQz9G_QWLj1P9CehVhbmh2ygszZNzRV6Gwo7-IM6BU35muGpANo6uRnPBNTSl3H8RKrKpbWXcGGrAnuFE2afcCNgPlurrmDzoXetjl5OOkMjsShB1ukGBt56MUhL1dLSJ3' }}
+      <View style={[s.heroSection, { height: IMAGE_HEIGHT }]}>
+        <Image
+          source={{ uri: 'https://images.unsplash.com/photo-1611309454921-16cef3438ee0?crop=entropy&cs=srgb&fm=jpg&ixid=M3w4NjAzMzV8MHwxfHNlYXJjaHwzfHxnb3VybWV0JTIwYnVyZ2VyJTIwZGFyayUyMGJhY2tncm91bmR8ZW58MHx8fHwxNzc1NDc2MDc5fDA&ixlib=rb-4.1.0&q=85' }}
           style={s.heroImage}
-        >
-          <LinearGradient
-            colors={['rgba(0,0,0,0.3)', 'transparent']}
-            style={StyleSheet.absoluteFill}
-          />
-        </ImageBackground>
+          contentFit="cover"
+          priority="high"
+        />
+        <LinearGradient
+          colors={['rgba(0,0,0,0)', '#050505']}
+          style={StyleSheet.absoluteFill}
+        />
       </View>
 
-      {/* 55% Content Section */}
+      {/* Content Section */}
       <ScrollView 
         style={s.contentScroll}
-        contentContainerStyle={s.contentContainer}
+        contentContainerStyle={[s.contentContainer, { marginTop: IMAGE_HEIGHT - 44 }]}
         bounces={false}
       >
         <View style={s.card}>
           {/* Brand */}
-          <Text style={s.brand}>firstmeal</Text>
+          <Text style={s.brand}>FIRSTMEAL</Text>
 
           {/* Header */}
           <View style={s.header}>
             <Text style={s.title}>Create Account</Text>
-            <Text style={s.subtitle}>Join the gourmet movement today</Text>
+            <Text style={s.subtitle}>Join the gourmet movement today.</Text>
           </View>
 
           {/* Form */}
           <View style={s.form}>
             <TextInput
-              style={s.input}
+              style={[s.input, nameFocused && s.inputFocused]}
               placeholder="Full Name"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={Colors.textSecondary}
+              returnKeyType="next"
+              onSubmitEditing={() => emailInputRef.current?.focus()}
               value={name}
               onChangeText={setName}
+              onFocus={() => setNameFocused(true)}
+              onBlur={() => setNameFocused(false)}
             />
             <TextInput
-              style={s.input}
+              ref={emailInputRef}
+              style={[s.input, emailFocused && s.inputFocused]}
               placeholder="Email address"
-              placeholderTextColor="#9CA3AF"
+              placeholderTextColor={Colors.textSecondary}
               keyboardType="email-address"
               autoCapitalize="none"
+              returnKeyType="next"
+              onSubmitEditing={() => passwordInputRef.current?.focus()}
               value={email}
               onChangeText={setEmail}
+              onFocus={() => setEmailFocused(true)}
+              onBlur={() => setEmailFocused(false)}
             />
-            <TextInput
-              style={s.input}
-              placeholder="Create Password"
-              placeholderTextColor="#9CA3AF"
-              secureTextEntry
-              value={password}
-              onChangeText={setPassword}
-            />
+            <View style={[s.inputContainer, passwordFocused && s.inputFocused]}>
+              <TextInput
+                ref={passwordInputRef}
+                style={s.passwordInput}
+                placeholder="Create Password"
+                placeholderTextColor={Colors.textSecondary}
+                secureTextEntry={!showPassword}
+                value={password}
+                onChangeText={setPassword}
+                onFocus={() => setPasswordFocused(true)}
+                onBlur={() => setPasswordFocused(false)}
+              />
+              <TouchableOpacity
+                onPress={() => setShowPassword(!showPassword)}
+                style={s.eyeButton}
+                activeOpacity={0.7}
+              >
+                <MaterialIcons
+                  name={showPassword ? 'visibility' : 'visibility-off'}
+                  size={20}
+                  color={Colors.textSecondary}
+                />
+              </TouchableOpacity>
+            </View>
 
             {error ? <Text style={s.errorTxt}>{error}</Text> : null}
 
@@ -126,9 +164,10 @@ export default function Register() {
               style={s.btn} 
               onPress={handleRegister}
               disabled={loading}
+              activeOpacity={0.8}
             >
               {loading ? (
-                <ActivityIndicator color="#fff" />
+                <ActivityIndicator color={Colors.primaryFg} />
               ) : (
                 <Text style={s.btnTxt}>CREATE ACCOUNT</Text>
               )}
@@ -141,11 +180,6 @@ export default function Register() {
               </TouchableOpacity>
             </View>
           </View>
-
-          {/* Premium Badge */}
-          <View style={s.badge}>
-            <Text style={s.badgeTxt}>JOIN PREMIUM</Text>
-          </View>
         </View>
       </ScrollView>
     </KeyboardAvoidingView>
@@ -155,10 +189,9 @@ export default function Register() {
 const s = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#fff8f1',
+    backgroundColor: Colors.background,
   },
   heroSection: {
-    height: '45%',
     width: '100%',
     position: 'absolute',
     top: 0,
@@ -169,87 +202,110 @@ const s = StyleSheet.create({
   },
   contentScroll: {
     flex: 1,
-    marginTop: '38%', // Slight overlap with hero
   },
   contentContainer: {
     paddingBottom: 40,
+    alignItems: 'center',
   },
   card: {
-    backgroundColor: '#fff',
-    borderTopLeftRadius: 40,
-    borderTopRightRadius: 40,
+    width: '100%',
+    maxWidth: 450,
+    backgroundColor: Colors.surface,
+    borderTopLeftRadius: 0,
+    borderTopRightRadius: 0,
     paddingHorizontal: 32,
     paddingTop: 40,
     paddingBottom: 60,
     minHeight: 550,
-    // Kinetic Offset Shadow
-    shadowColor: '#897541',
-    shadowOffset: { width: 4, height: 4 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-    elevation: 5,
     borderWidth: 1,
-    borderColor: 'rgba(255,255,255,0.2)',
+    borderColor: Colors.border,
   },
   brand: {
     textAlign: 'center',
-    fontSize: 28,
-    fontWeight: '900',
-    color: '#1f1b12',
+    fontSize: 24,
+    fontFamily: 'PlayfairDisplay_600SemiBold',
+    color: Colors.textPrimary,
     marginBottom: 32,
-    letterSpacing: -1,
+    letterSpacing: 2,
+    textTransform: 'uppercase',
   },
   header: {
     marginBottom: 40,
   },
   title: {
     fontSize: 32,
-    fontWeight: '900',
-    color: '#1f1b12',
+    fontFamily: 'PlayfairDisplay_600SemiBold',
+    color: Colors.textPrimary,
     lineHeight: 36,
+    letterSpacing: -0.5,
   },
   subtitle: {
-    fontSize: 14,
-    color: '#7f7662',
-    fontWeight: '500',
-    marginTop: 4,
+    fontSize: 16,
+    color: Colors.textSecondary,
+    fontFamily: 'DMSans_400Regular',
+    marginTop: 6,
   },
   form: {
     gap: 16,
   },
   input: {
-    backgroundColor: '#fff8f1',
+    backgroundColor: Colors.surface,
     borderWidth: 1,
-    borderColor: '#d1c5ae',
-    borderRadius: 12,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
     paddingHorizontal: 16,
     paddingVertical: 14,
+    height: 56,
     fontSize: 16,
-    color: '#1f1b12',
-    fontWeight: '500',
+    color: Colors.textPrimary,
+    fontFamily: 'DMSans_400Regular',
+  },
+  inputContainer: {
+    backgroundColor: Colors.surface,
+    borderWidth: 1,
+    borderColor: Colors.border,
+    borderRadius: Radius.sm,
+    height: 56,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  passwordInput: {
+    flex: 1,
+    height: '100%',
+    paddingHorizontal: 16,
+    fontSize: 16,
+    color: Colors.textPrimary,
+    fontFamily: 'DMSans_400Regular',
+  },
+  eyeButton: {
+    paddingHorizontal: 12,
+    height: '100%',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  inputFocused: {
+    borderColor: Colors.primary,
   },
   errorTxt: {
-    color: '#ba1a1a',
+    color: Colors.error,
     fontSize: 13,
-    fontWeight: '700',
+    fontFamily: 'DMSans_500Medium',
   },
   btn: {
-    backgroundColor: '#1f1b12',
-    borderRadius: 12,
+    backgroundColor: Colors.primary,
+    borderRadius: Radius.sm,
     paddingVertical: 16,
+    height: 56,
     alignItems: 'center',
+    justifyContent: 'center',
     marginTop: 16,
-    // Kinetic Offset shadow for button
-    shadowColor: '#897541',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
   },
   btnTxt: {
-    color: '#fff8f1',
-    fontSize: 14,
-    fontWeight: '900',
+    color: Colors.primaryFg,
+    fontSize: 16,
+    fontFamily: 'DMSans_700Bold',
     letterSpacing: 1,
+    textTransform: 'uppercase',
   },
   footer: {
     flexDirection: 'row',
@@ -257,32 +313,13 @@ const s = StyleSheet.create({
     marginTop: 32,
   },
   footerTxt: {
-    color: '#4e4634',
+    color: Colors.textSecondary,
     fontSize: 14,
-    fontWeight: '500',
+    fontFamily: 'DMSans_400Regular',
   },
   link: {
-    color: '#1f1b12',
+    color: Colors.textPrimary,
     fontSize: 14,
-    fontWeight: '900',
-  },
-  badge: {
-    position: 'absolute',
-    top: -20,
-    right: 32,
-    backgroundColor: '#6f5c2b',
-    paddingHorizontal: 16,
-    paddingVertical: 6,
-    borderRadius: 20,
-    shadowColor: '#897541',
-    shadowOffset: { width: 2, height: 2 },
-    shadowOpacity: 1,
-    shadowRadius: 0,
-  },
-  badgeTxt: {
-    color: '#fff8f1',
-    fontSize: 10,
-    fontWeight: '900',
-    letterSpacing: 1,
+    fontFamily: 'DMSans_700Bold',
   },
 });

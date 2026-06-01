@@ -31,12 +31,32 @@ export const api = {
 
 
   // Restaurants
-  getRestaurants: async (params?: Record<string, string>) => {
-    let q = supabase.from('restaurants').select('*');
-    if (params?.cuisine) q = q.contains('cuisine', [params.cuisine]);
+  getRestaurants: async (params?: Record<string, string | number>) => {
+    const page = typeof params?.page === 'number' ? params.page : 1;
+    const pageSize = typeof params?.pageSize === 'number' ? params.pageSize : 20;
+    const start = (page - 1) * pageSize;
+    const end = start + pageSize - 1;
+    let q = supabase
+      .from('restaurants')
+      .select('id, name, cuisine, description, image, cover_image, rating, review_count, delivery_time, delivery_fee, min_order, price_range, tags, is_active')
+      .range(start, end);
+    if (params?.search) {
+      q = q.or(`name.ilike.%${params.search}%,description.ilike.%${params.search}%`);
+    }
     const { data, error } = await q;
     if (error) throw error;
-    return data;
+    
+    if (params?.cuisine) {
+      const needle = (params.cuisine as string).toLowerCase();
+      return (data ?? []).filter((r: any) =>
+        Array.isArray(r.cuisine)
+          ? r.cuisine.some((c: string) => c.toLowerCase().includes(needle) || needle.includes(c.toLowerCase()))
+          : typeof r.cuisine === 'string'
+            ? r.cuisine.toLowerCase().includes(needle)
+            : false
+      );
+    }
+    return data ?? [];
   },
   getRestaurant: async (id: string) => {
     const { data, error } = await supabase.from('restaurants').select('*').eq('id', id).single();
@@ -54,8 +74,48 @@ export const api = {
 
   // Orders
   placeOrder: (order: any) => req('POST', '/orders', order),
-  getOrders: () => req('GET', '/orders'),
-  getOrder: (id: string) => req('GET', `/orders/${id}`),
+  getOrders: async () => {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return [];
+    
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        restaurants (
+          name,
+          image
+        )
+      `)
+      .eq('user_id', user.id)
+      .order('created_at', { ascending: false });
+      
+    if (error) throw error;
+    
+    // Flatten the result for easier UI usage
+    return data.map(o => ({
+      ...o,
+      restaurant_name: (o.restaurants as any)?.name,
+      restaurant_image: (o.restaurants as any)?.image
+    }));
+  },
+  getOrder: async (id: string) => {
+    const { data, error } = await supabase
+      .from('orders')
+      .select(`
+        *,
+        restaurants (*)
+      `)
+      .eq('id', id)
+      .single();
+      
+    if (error) throw error;
+    return {
+      ...data,
+      restaurant_name: (data.restaurants as any)?.name,
+      restaurant_image: (data.restaurants as any)?.image
+    };
+  },
 
   // Chat
   sendMessage: (message: string, session_id: string) =>
